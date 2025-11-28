@@ -36,29 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            HalalFinanceTheme {
-                LoginScreen()
-            }
-        }
-    }
-}
-
-@Composable
-fun HalalFinanceTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF00BFA5),
-            secondary = Color(0xFF4CAF50),
-            background = Color(0xFF00BFA5)
-        ),
-        content = content
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen() {
