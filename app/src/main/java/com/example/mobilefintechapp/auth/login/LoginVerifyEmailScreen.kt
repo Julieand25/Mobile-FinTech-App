@@ -1,8 +1,5 @@
-package com.example.mobilefintechapp.screen
+package com.example.mobilefintechapp.auth.login
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -20,21 +17,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
+fun LoginVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
     var otpValues by remember { mutableStateOf(List(6) { "" }) }
     var timeLeft by remember { mutableStateOf(60) }
     var canResend by remember { mutableStateOf(false) }
@@ -173,7 +173,7 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Subtitle with email
+                    /// Subtitle with email
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth()
@@ -284,7 +284,7 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
 
                         // Verify Button
                         Button(
-                            onClick = { /* TODO: Verify OTP */ },
+                            onClick = { /* TODO: Verify OTP and proceed to login */ },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
@@ -357,7 +357,7 @@ fun OTPBox(
 ) {
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(48.dp)
             .background(
                 color = if (value.isEmpty()) Color.White else Color(0xFFF5F5F5),
                 shape = RoundedCornerShape(12.dp)
@@ -399,8 +399,8 @@ fun OTPBox(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SignUpVerifyEmailScreenPreview() {
+fun LoginVerifyEmailScreenPreview() {
     HalalFinanceTheme {
-        SignUpVerifyEmailScreen()
+        LoginVerifyEmailScreen()
     }
 }

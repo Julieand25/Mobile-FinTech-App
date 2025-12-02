@@ -1,8 +1,5 @@
-package com.example.mobilefintechapp.screen
+package com.example.mobilefintechapp.auth.forgot_password
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,10 +18,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +123,7 @@ fun ForgotPasswordScreen() {
                         value = email,
                         onValueChange = { email = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Enter your registered email") },
+                        placeholder = { Text("Enter email") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Email,
