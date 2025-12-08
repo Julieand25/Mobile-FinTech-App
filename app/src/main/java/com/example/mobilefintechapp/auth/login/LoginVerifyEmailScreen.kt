@@ -326,7 +326,7 @@ fun OTPInputField(
             OTPBox(
                 value = value,
                 onValueChange = { newValue ->
-                    if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
+                    if (newValue.length <= 1 && newValue.all { it.isDigit() }) {  // FIXED HERE
                         val newValues = otpValues.toMutableList()
                         newValues[index] = newValue
                         onOtpChange(newValues)
@@ -357,7 +357,7 @@ fun OTPBox(
 ) {
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(40.dp)
             .background(
                 color = if (value.isEmpty()) Color.White else Color(0xFFF5F5F5),
                 shape = RoundedCornerShape(12.dp)
