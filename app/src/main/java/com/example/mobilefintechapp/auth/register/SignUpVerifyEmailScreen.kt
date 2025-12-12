@@ -22,29 +22,78 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import kotlinx.coroutines.delay
-import kotlin.compareTo
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.mobilefintechapp.auth.register.viewmodel.RegistrationViewModel
+import com.example.mobilefintechapp.data.model.OtpType
+import com.example.mobilefintechapp.data.model.UserRegistration
+import com.example.mobilefintechapp.navigation.Screen
+import com.example.mobilefintechapp.viewmodel.OtpViewModel
+//import com.example.mobilefintechapp.auth.register.viewmodel.RegistrationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
-    var otpValues by remember { mutableStateOf(List(6) { "" }) }
-    var timeLeft by remember { mutableStateOf(60) }
-    var canResend by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+fun SignUpVerifyEmailScreen(
+    navController: NavController,
+    userEmail: String,
+    fullName: String,
+    password: String,
+    otpViewModel: OtpViewModel = viewModel(),
+    registrationViewModel: RegistrationViewModel = viewModel()
+) {
+    val otpUiState by otpViewModel.uiState.collectAsStateWithLifecycle()
+    val registrationUiState by registrationViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Countdown timer
-    LaunchedEffect(timeLeft) {
-        if (timeLeft > 0) {
-            delay(1000L)
-            timeLeft--
-        } else {
-            canResend = true
-        }
+    // Initialize with SIGN_UP type
+    LaunchedEffect(userEmail) {
+        otpViewModel.initializeOtp(
+            email = userEmail,
+            otpType = OtpType.SIGN_UP
+        )
+    }
+
+    // Show registration progress dialog
+    if (registrationUiState.isRegistering) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Creating Account") },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(40.dp),
+                        color = Color(0xFF10B981)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Please wait while we set up your account...")
+                }
+            },
+            confirmButton = { }
+        )
+    }
+
+    // Show registration error dialog
+    if (registrationUiState.registrationError != null) {
+        AlertDialog(
+            onDismissRequest = {
+                registrationViewModel.clearError()
+            },
+            title = { Text("Registration Failed") },
+            text = { Text(registrationUiState.registrationError ?: "Unknown error") },
+            confirmButton = {
+                TextButton(onClick = {
+                    registrationViewModel.clearError()
+                }) {
+                    Text("OK", color = Color(0xFF10B981))
+                }
+            }
+        )
     }
 
     Box(
@@ -76,7 +125,9 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
             ) {
                 // Back Button with Circle Background
                 IconButton(
-                    onClick = { /* TODO: Navigate back */ },
+                    onClick = {
+                        navController.popBackStack()
+                    },
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .size(48.dp)
@@ -111,7 +162,7 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Enter the 6-digit code sent to the email",
+                        text = "Enter the 6-digit code sent to your email",
                         fontSize = 13.sp,
                         color = Color.White.copy(alpha = 0.95f),
                         textAlign = TextAlign.Center
@@ -175,16 +226,13 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Enter the 6-digit code sent to ",
-                                fontSize = 13.sp,
-                                color = Color.DarkGray
-                            )
-                        }
+                        Text(
+                            text = "Enter the 6-digit code sent to",
+                            fontSize = 13.sp,
+                            color = Color.DarkGray,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = userEmail,
                             fontSize = 13.sp,
@@ -194,15 +242,40 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Attempts remaining (only show if less than 5)
+                    if (otpUiState.attemptsLeft < 5 && otpUiState.attemptsLeft > 0) {
+                        Text(
+                            text = "${otpUiState.attemptsLeft} attempts remaining",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFF9800),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     // OTP Input Boxes
                     OTPInputField(
-                        otpValues = otpValues,
+                        otpValues = otpUiState.otpValues,
                         onOtpChange = { newValues ->
-                            otpValues = newValues
-                        }
+                            otpViewModel.updateOtpValues(newValues)
+                        },
+                        enabled = !otpUiState.isLocked && !otpUiState.isVerifying
                     )
+
+                    // Error Message
+                    if (otpUiState.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = otpUiState.errorMessage!!,
+                            color = Color.Red,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
@@ -218,17 +291,28 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        if (canResend) {
+                        if (otpUiState.isLocked) {
+                            Text(
+                                text = "Account locked. Try again in 8 hours.",
+                                fontSize = 14.sp,
+                                color = Color.Red,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else if (otpUiState.canResend) {
                             TextButton(
-                                onClick = {
-                                    // TODO: Resend OTP
-                                    timeLeft = 60
-                                    canResend = false
-                                    otpValues = List(6) { "" }
-                                }
+                                onClick = { otpViewModel.resendOtpWithEmail(userEmail) },
+                                enabled = !otpUiState.isResending
                             ) {
+                                if (otpUiState.isResending) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color(0xFF10B981),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
                                 Text(
-                                    text = "Resend Code",
+                                    text = if (otpUiState.isResending) "Sending..." else "Resend Code",
                                     color = Color(0xFF10B981),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
@@ -242,7 +326,7 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                                     color = Color.DarkGray
                                 )
                                 Text(
-                                    text = "${timeLeft}s",
+                                    text = "${otpUiState.timeLeft}s",
                                     fontSize = 14.sp,
                                     color = Color(0xFF10B981),
                                     fontWeight = FontWeight.Bold
@@ -260,7 +344,9 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                     ) {
                         // Back Button
                         OutlinedButton(
-                            onClick = { /* TODO: Navigate back */ },
+                            onClick = {
+                                navController.popBackStack()
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
@@ -268,9 +354,7 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color.DarkGray
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.linearGradient(listOf(Color.LightGray, Color.LightGray))
-                            )
+                            enabled = !otpUiState.isVerifying
                         ) {
                             Text(
                                 text = "Back",
@@ -281,7 +365,26 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
 
                         // Verify Button
                         Button(
-                            onClick = { /* TODO: Verify OTP */ },
+                            onClick = {
+                                otpViewModel.verifyOtp(
+                                    email = userEmail,
+                                    otpType = OtpType.SIGN_UP
+                                ) {
+                                    // On OTP verification success, register the user
+                                    val userRegistration = UserRegistration(
+                                        fullName = fullName,
+                                        email = userEmail,
+                                        password = password
+                                    )
+
+                                    registrationViewModel.registerUser(userRegistration) {
+                                        // On registration success, navigate to Login
+                                        navController.navigate(Screen.Login.route) {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                    }
+                                }
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
@@ -289,10 +392,25 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF10B981)
                             ),
-                            enabled = otpValues.all { it.isNotEmpty() }
+                            enabled = otpUiState.otpValues.all { it.isNotEmpty() }
+                                    && !otpUiState.isVerifying
+                                    && !otpUiState.isLocked
+                                    && !registrationUiState.isRegistering
                         ) {
+                            if (otpUiState.isVerifying || registrationUiState.isRegistering) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
-                                text = "Verify",
+                                text = when {
+                                    otpUiState.isVerifying -> "Verifying..."
+                                    registrationUiState.isRegistering -> "Creating..."
+                                    else -> "Verify"
+                                },
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -311,7 +429,8 @@ fun SignUpVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
 @Composable
 fun OTPInputField(
     otpValues: List<String>,
-    onOtpChange: (List<String>) -> Unit
+    onOtpChange: (List<String>) -> Unit,
+    enabled: Boolean = true
 ) {
     val focusRequesters = remember { List(6) { FocusRequester() } }
 
@@ -323,7 +442,7 @@ fun OTPInputField(
             OTPBox(
                 value = value,
                 onValueChange = { newValue ->
-                    if (newValue.length <= 1 && newValue.all { it.isDigit() }) {  // FIXED HERE
+                    if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
                         val newValues = otpValues.toMutableList()
                         newValues[index] = newValue
                         onOtpChange(newValues)
@@ -334,10 +453,14 @@ fun OTPInputField(
                         }
                     } else if (newValue.isEmpty() && index > 0) {
                         // Focus previous box on delete
+                        val newValues = otpValues.toMutableList()
+                        newValues[index] = ""
+                        onOtpChange(newValues)
                         focusRequesters[index - 1].requestFocus()
                     }
                 },
-                focusRequester = focusRequesters[index]
+                focusRequester = focusRequesters[index],
+                enabled = enabled
             )
             if (index < 5) {
                 Spacer(modifier = Modifier.width(8.dp))
@@ -350,7 +473,8 @@ fun OTPInputField(
 fun OTPBox(
     value: String,
     onValueChange: (String) -> Unit,
-    focusRequester: FocusRequester
+    focusRequester: FocusRequester,
+    enabled: Boolean = true
 ) {
     Box(
         modifier = Modifier
@@ -382,6 +506,7 @@ fun OTPBox(
                 keyboardType = KeyboardType.Number
             ),
             singleLine = true,
+            enabled = enabled,
             decorationBox = { innerTextField ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -391,13 +516,5 @@ fun OTPBox(
                 }
             }
         )
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun SignUpVerifyEmailScreenPreview() {
-    HalalFinanceTheme {
-        SignUpVerifyEmailScreen()
     }
 }

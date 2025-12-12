@@ -30,12 +30,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
 import com.example.mobilefintechapp.R
+import com.example.mobilefintechapp.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen() {
+fun SignUpScreen(navController: NavController) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -43,6 +44,19 @@ fun SignUpScreen() {
     var agreeToTerms by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+    // Validation states
+    var showPasswordMismatchError by remember { mutableStateOf(false) }
+    var showEmptyFieldsError by remember { mutableStateOf(false) }
+
+    // Check if passwords match whenever they change
+    LaunchedEffect(password, confirmPassword) {
+        if (confirmPassword.isNotEmpty()) {
+            showPasswordMismatchError = password != confirmPassword
+        } else {
+            showPasswordMismatchError = false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -73,7 +87,12 @@ fun SignUpScreen() {
             ) {
                 // Back Button with Circle Background
                 IconButton(
-                    onClick = { /* TODO: Navigate back */ },
+                    onClick = {
+                        // Navigate back to Login Screen
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .size(48.dp)
@@ -327,10 +346,21 @@ fun SignUpScreen() {
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF10B981),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                            focusedBorderColor = if (showPasswordMismatchError) Color.Red else Color(0xFF10B981),
+                            unfocusedBorderColor = if (showPasswordMismatchError) Color.Red else Color.LightGray
+                        ),
+                        isError = showPasswordMismatchError
                     )
+
+                    // Password mismatch error message
+                    if (showPasswordMismatchError) {
+                        Text(
+                            text = "Passwords do not match",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -391,11 +421,41 @@ fun SignUpScreen() {
                         )
                     }
 
+                    // Show error if terms not agreed
+                    if (showEmptyFieldsError && !agreeToTerms) {
+                        Text(
+                            text = "You must agree to the Terms and Privacy Policy to continue",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // Create Account Button
+                    // In SignUpScreen.kt - Update the Create Account Button onClick:
+
                     Button(
-                        onClick = { /* TODO: Handle sign up */ },
+                        onClick = {
+                            // Validate all fields
+                            if (fullName.isEmpty() || email.isEmpty() ||
+                                password.isEmpty() || confirmPassword.isEmpty() ||
+                                !agreeToTerms) {
+                                showEmptyFieldsError = true
+                            } else if (password != confirmPassword) {
+                                showPasswordMismatchError = true
+                            } else {
+                                // All validations passed, navigate to verify email screen with user data
+                                // Encode the data to pass through navigation
+                                val route = Screen.SignUpVerifyEmail.createRoute(
+                                    email = email,
+                                    fullName = fullName,
+                                    password = password
+                                )
+                                navController.navigate(route)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -408,6 +468,20 @@ fun SignUpScreen() {
                             text = "Create Account",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // General error message
+                    if (showEmptyFieldsError && (fullName.isEmpty() || email.isEmpty() ||
+                                password.isEmpty() || confirmPassword.isEmpty())) {
+                        Text(
+                            text = "Please fill in all fields",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
                         )
                     }
 
@@ -436,7 +510,10 @@ fun SignUpScreen() {
                             text = signInAnnotatedString,
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                             onClick = {
-                                // TODO: Navigate to sign in
+                                // Navigate to Login Screen
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
                             }
                         )
                     }
@@ -458,12 +535,4 @@ fun HalalFinanceTheme(content: @Composable () -> Unit) {
         ),
         content = content
     )
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun SignUpScreenPreview() {
-    HalalFinanceTheme {
-        SignUpScreen()
-    }
 }

@@ -20,13 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
 import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
+import com.example.mobilefintechapp.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ForgotPasswordScreen() {
+fun ForgotPasswordScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
+    var showEmailError by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -58,7 +60,12 @@ fun ForgotPasswordScreen() {
             ) {
                 // Back Button with Circle Background
                 IconButton(
-                    onClick = { /* TODO: Navigate back */ },
+                    onClick = {
+                        // Navigate back to Login Screen
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
                     modifier = Modifier
                         .size(48.dp)
                         .background(
@@ -121,7 +128,13 @@ fun ForgotPasswordScreen() {
 
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = {
+                            email = it
+                            // Hide error when user starts typing
+                            if (it.isNotEmpty()) {
+                                showEmailError = false
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Enter email") },
                         leadingIcon = {
@@ -149,24 +162,42 @@ fun ForgotPasswordScreen() {
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF10B981),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                            focusedBorderColor = if (showEmailError) Color.Red else Color(0xFF10B981),
+                            unfocusedBorderColor = if (showEmailError) Color.Red else Color.LightGray
+                        ),
+                        isError = showEmailError
                     )
+
+                    // Email error message
+                    if (showEmailError) {
+                        Text(
+                            text = "Please enter your email to continue",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // Next Button
                     Button(
-                        onClick = { /* TODO: Handle forgot password */ },
+                        onClick = {
+                            // Validate email field
+                            if (email.isEmpty()) {
+                                showEmailError = true
+                            } else {
+                                // Email is valid, navigate to ForgotPasswordVerifyEmail screen
+                                navController.navigate(Screen.ForgotPasswordVerifyEmail.route)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF10B981)
-                        ),
-                        enabled = email.isNotEmpty()
+                        )
                     ) {
                         Text(
                             text = "Next",
@@ -179,13 +210,5 @@ fun ForgotPasswordScreen() {
 
             Spacer(modifier = Modifier.height(40.dp))
         }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ForgotPasswordScreenPreview() {
-    HalalFinanceTheme {
-        ForgotPasswordScreen()
     }
 }

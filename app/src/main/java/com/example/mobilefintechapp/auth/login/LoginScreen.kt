@@ -1,13 +1,12 @@
 package com.example.mobilefintechapp.auth.login
 
-import com.example.mobilefintechapp.R
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -19,9 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -29,16 +27,51 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
+import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavController
+import com.example.mobilefintechapp.R
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen() {
+fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+    val scope = rememberCoroutineScope()
+    val sharedPreferences = context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
+
+    // Load saved credentials if remember me was checked
+    LaunchedEffect(Unit) {
+        val savedEmail = sharedPreferences.getString("saved_email", "")
+        val savedPassword = sharedPreferences.getString("saved_password", "")
+        val wasRemembered = sharedPreferences.getBoolean("remember_me", false)
+
+        if (wasRemembered && !savedEmail.isNullOrEmpty()) {
+            email = savedEmail
+            password = savedPassword ?: ""
+            rememberMe = true
+        }
+    }
+
+    // Error Dialog
+    if (showErrorDialog) {
+        LoginFailedDialog(
+            onDismiss = { showErrorDialog = false },
+            onTryAgain = { showErrorDialog = false },
+            onForgotPassword = {
+                showErrorDialog = false
+                navController.navigate("forgot_password")
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -60,8 +93,6 @@ fun LoginScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            //Spacer(modifier = Modifier.height(40.dp))
-
             // Logo Section
             Image(
                 painter = painterResource(id = R.drawable.app_logo),
@@ -127,7 +158,7 @@ fun LoginScreen() {
                                 tint = Color.Gray
                             )
                         },
-                        keyboardOptions = KeyboardOptions(
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = KeyboardType.Email
                         ),
                         singleLine = true,
@@ -135,7 +166,8 @@ fun LoginScreen() {
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF10B981),
                             unfocusedBorderColor = Color.LightGray
-                        )
+                        ),
+                        enabled = !isLoading
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -182,7 +214,7 @@ fun LoginScreen() {
                         },
                         visualTransformation = if (passwordVisible)
                             VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = KeyboardType.Password
                         ),
                         singleLine = true,
@@ -190,7 +222,8 @@ fun LoginScreen() {
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF10B981),
                             unfocusedBorderColor = Color.LightGray
-                        )
+                        ),
+                        enabled = !isLoading
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -209,7 +242,8 @@ fun LoginScreen() {
                                 onCheckedChange = { rememberMe = it },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = Color(0xFF10B981)
-                                )
+                                ),
+                                enabled = !isLoading
                             )
                             Text(
                                 text = "Remember me",
@@ -218,7 +252,10 @@ fun LoginScreen() {
                             )
                         }
 
-                        TextButton(onClick = { /* TODO: Navigate to forgot password */ }) {
+                        TextButton(
+                            onClick = { navController.navigate("forgot_password") },
+                            enabled = !isLoading
+                        ) {
                             Text(
                                 text = "Forgot Password?",
                                 color = Color(0xFF10B981),
@@ -231,27 +268,75 @@ fun LoginScreen() {
 
                     // Sign In Button
                     Button(
-                        onClick = { /* TODO: Handle sign in */ },
+                        onClick = {
+                            if (email.isNotEmpty() && password.isNotEmpty()) {
+                                isLoading = true
+                                scope.launch {
+                                    try {
+                                        auth.signInWithEmailAndPassword(email, password)
+                                            .addOnCompleteListener { task ->
+                                                isLoading = false
+                                                if (task.isSuccessful) {
+                                                    // Save credentials if remember me is checked
+                                                    if (rememberMe) {
+                                                        sharedPreferences.edit().apply {
+                                                            putString("saved_email", email)
+                                                            putString("saved_password", password)
+                                                            putBoolean("remember_me", true)
+                                                            apply()
+                                                        }
+                                                    } else {
+                                                        sharedPreferences.edit().clear().apply()
+                                                    }
+
+                                                    // Navigate to OTP verification screen
+                                                    navController.navigate("login_verify_email") {
+                                                        popUpTo("login") { inclusive = true }
+                                                    }
+                                                } else {
+                                                    // Show error dialog
+                                                    showErrorDialog = true
+                                                }
+                                            }
+                                    } catch (e: Exception) {
+                                        isLoading = false
+                                        showErrorDialog = true
+                                    }
+                                }
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF10B981)
-                        )
+                        ),
+                        enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty()
                     ) {
-                        Text(
-                            text = "Sign In",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Sign In",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Sign Up Text
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isLoading) {
+                                navController.navigate("sign_up")
+                            },
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
@@ -264,7 +349,6 @@ fun LoginScreen() {
                             fontSize = 14.sp,
                             color = Color(0xFF10B981),
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickableText { /* TODO: Navigate to sign up */ }
                         )
                     }
                 }
@@ -275,61 +359,111 @@ fun LoginScreen() {
     }
 }
 
-// Extension function for clickable text
-fun Modifier.clickableText(onClick: () -> Unit): Modifier {
-    return this.then(
-        Modifier.padding(4.dp)
-    )
-}
-
-// You can use this composable for clickable text with better handling
 @Composable
-fun ClickableTextComposable(
-    fullText: String,
-    clickableText: String,
-    onClick: () -> Unit
+fun LoginFailedDialog(
+    onDismiss: () -> Unit,
+    onTryAgain: () -> Unit,
+    onForgotPassword: () -> Unit
 ) {
-    val annotatedString = buildAnnotatedString {
-        val startIndex = fullText.indexOf(clickableText)
-        val endIndex = startIndex + clickableText.length
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Warning Icon
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            color = Color(0xFFFFE5E5),
+                            shape = RoundedCornerShape(40.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.warning_sign),
+                        contentDescription = "Warning Icon",
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
 
-        append(fullText)
+                Spacer(modifier = Modifier.height(16.dp))
 
-        addStyle(
-            style = SpanStyle(
-                color = Color(0xFF00BFA5),
-                fontWeight = FontWeight.Bold
-            ),
-            start = startIndex,
-            end = endIndex
-        )
+                // Title
+                Text(
+                    text = "Login Failed",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
 
-        addStringAnnotation(
-            tag = "CLICKABLE",
-            annotation = "signup",
-            start = startIndex,
-            end = endIndex
-        )
-    }
+                Spacer(modifier = Modifier.height(12.dp))
 
-    ClickableText(
-        text = annotatedString,
-        onClick = { offset ->
-            annotatedString.getStringAnnotations(
-                tag = "CLICKABLE",
-                start = offset,
-                end = offset
-            ).firstOrNull()?.let {
-                onClick()
+                // Message
+                Text(
+                    text = "The email or password you entered is incorrect.\nPlease try again or forgot password.",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Try Again Button
+                    OutlinedButton(
+                        onClick = onTryAgain,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF10B981)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981))
+                    ) {
+                        Text(
+                            text = "Try again",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Forgot Password Button
+                    Button(
+                        onClick = onForgotPassword,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF10B981)
+                        )
+                    ) {
+                        Text(
+                            text = "Forgot Password",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
-    )
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun LoginScreenPreview() {
-    HalalFinanceTheme {
-        LoginScreen()
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.navigation.NavController
 import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
 import com.example.mobilefintechapp.auth.register.OTPBox
 import com.example.mobilefintechapp.auth.register.OTPInputField
@@ -36,7 +37,7 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ForgotPasswordVerifyEmailScreen(userEmail: String = "ahmad@gmail.com") {
+fun ForgotPasswordVerifyEmailScreen(navController: NavController, userEmail: String = "ahmad@gmail.com") {
     var otpValues by remember { mutableStateOf(List(6) { "" }) }
     var timeLeft by remember { mutableStateOf(60) }
     var canResend by remember { mutableStateOf(false) }
@@ -399,10 +400,10 @@ fun OTPBox(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+/*@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ForgotPasswordVerifyEmailScreenPreview() {
     HalalFinanceTheme {
         ForgotPasswordVerifyEmailScreen()
     }
-}
+}*/
