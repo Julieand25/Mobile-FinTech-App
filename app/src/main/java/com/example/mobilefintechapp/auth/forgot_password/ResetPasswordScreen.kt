@@ -1,16 +1,11 @@
 package com.example.mobilefintechapp.auth.forgot_password
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,16 +20,69 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavController
 import com.example.mobilefintechapp.R
+import com.example.mobilefintechapp.navigation.Screen
+import com.google.firebase.functions.FirebaseFunctions
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResetPasswordScreen() {
+fun ResetPasswordScreen(
+    navController: NavController,
+    userEmail: String,
+    verificationToken: String  // ✨ NEW: Receive token directly as parameter
+) {
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var showPasswordMismatchError by remember { mutableStateOf(false) }
+    var showWeakPasswordError by remember { mutableStateOf(false) }
+    var isResetting by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
+    val functions = FirebaseFunctions.getInstance()
+
+    // ✨ Debug log to verify token is received
+    LaunchedEffect(Unit) {
+        Log.d("ResetPasswordScreen", "Verification token received: $verificationToken")
+    }
+
+    // Check password match
+    LaunchedEffect(newPassword, confirmPassword) {
+        if (confirmPassword.isNotEmpty()) {
+            showPasswordMismatchError = newPassword != confirmPassword
+        } else {
+            showPasswordMismatchError = false
+        }
+    }
+
+    // Success Dialog
+    if (showSuccessDialog) {
+        SuccessDialog(
+            onDismiss = {
+                showSuccessDialog = false
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+        )
+    }
+
+    // Error Dialog
+    if (showErrorDialog) {
+        ErrorDialog(
+            errorMessage = errorMessage,
+            onDismiss = { showErrorDialog = false }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -80,7 +128,7 @@ fun ResetPasswordScreen() {
                 )
             }
 
-            Spacer(modifier = Modifier.height(52.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Reset Password Card
             Card(
@@ -109,16 +157,12 @@ fun ResetPasswordScreen() {
 
                     OutlinedTextField(
                         value = newPassword,
-                        onValueChange = { newPassword = it },
+                        onValueChange = {
+                            newPassword = it
+                            showWeakPasswordError = it.isNotEmpty() && it.length < 6
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Enter your new password", color = Color.Gray.copy(alpha = 0.6f)) },
-                        /*leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Password Icon",
-                                tint = Color.Gray
-                            )
-                        },*/
+                        placeholder = { Text("Enter new password") },
                         trailingIcon = {
                             if (newPassword.isNotEmpty()) {
                                 IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
@@ -147,10 +191,21 @@ fun ResetPasswordScreen() {
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF10B981),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                            focusedBorderColor = if (showWeakPasswordError) Color.Red else Color(0xFF10B981),
+                            unfocusedBorderColor = if (showWeakPasswordError) Color.Red else Color.LightGray
+                        ),
+                        enabled = !isResetting,
+                        isError = showWeakPasswordError
                     )
+
+                    if (showWeakPasswordError) {
+                        Text(
+                            text = "Password must be at least 6 characters",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -167,14 +222,7 @@ fun ResetPasswordScreen() {
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Confirm your new password", color = Color.Gray.copy(alpha = 0.6f)) },
-                        /*leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Password Icon",
-                                tint = Color.Gray
-                            )
-                        },*/
+                        placeholder = { Text("Confirm new password") },
                         trailingIcon = {
                             if (confirmPassword.isNotEmpty()) {
                                 IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
@@ -203,10 +251,21 @@ fun ResetPasswordScreen() {
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF10B981),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                            focusedBorderColor = if (showPasswordMismatchError) Color.Red else Color(0xFF10B981),
+                            unfocusedBorderColor = if (showPasswordMismatchError) Color.Red else Color.LightGray
+                        ),
+                        enabled = !isResetting,
+                        isError = showPasswordMismatchError
                     )
+
+                    if (showPasswordMismatchError) {
+                        Text(
+                            text = "Passwords do not match",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
@@ -217,7 +276,11 @@ fun ResetPasswordScreen() {
                     ) {
                         // Cancel Button
                         OutlinedButton(
-                            onClick = { /* TODO: Navigate back or cancel */ },
+                            onClick = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
@@ -225,9 +288,7 @@ fun ResetPasswordScreen() {
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color.DarkGray
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.linearGradient(listOf(Color.LightGray, Color.LightGray))
-                            )
+                            enabled = !isResetting
                         ) {
                             Text(
                                 text = "Cancel",
@@ -238,7 +299,50 @@ fun ResetPasswordScreen() {
 
                         // Confirm Button
                         Button(
-                            onClick = { /* TODO: Reset password */ },
+                            onClick = {
+                                // Validate inputs
+                                if (newPassword.length < 6) {
+                                    showWeakPasswordError = true
+                                    return@Button
+                                }
+
+                                if (newPassword != confirmPassword) {
+                                    showPasswordMismatchError = true
+                                    return@Button
+                                }
+
+                                if (verificationToken == null) {
+                                    errorMessage = "Verification token missing. Please restart the process."
+                                    showErrorDialog = true
+                                    return@Button
+                                }
+
+                                // Call Cloud Function to reset password
+                                isResetting = true
+                                scope.launch {
+                                    try {
+                                        val data = hashMapOf(
+                                            "email" to userEmail,
+                                            "newPassword" to newPassword,
+                                            "otpVerificationToken" to verificationToken
+                                        )
+
+                                        val result = functions
+                                            .getHttpsCallable("resetUserPassword")
+                                            .call(data)
+                                            .await()
+
+                                        // Success!
+                                        isResetting = false
+                                        showSuccessDialog = true
+
+                                    } catch (e: Exception) {
+                                        isResetting = false
+                                        errorMessage = e.message ?: "Failed to reset password"
+                                        showErrorDialog = true
+                                    }
+                                }
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
@@ -248,13 +352,22 @@ fun ResetPasswordScreen() {
                             ),
                             enabled = newPassword.isNotEmpty() &&
                                     confirmPassword.isNotEmpty() &&
-                                    newPassword == confirmPassword
+                                    newPassword == confirmPassword &&
+                                    newPassword.length >= 6 &&
+                                    !isResetting
                         ) {
-                            Text(
-                                text = "Confirm",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (isResetting) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = "Confirm",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -266,21 +379,93 @@ fun ResetPasswordScreen() {
 }
 
 @Composable
-fun HalalFinanceTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF10B981),
-            secondary = Color(0xFF0E9788),
-            background = Color(0xFF10B881)
-        ),
-        content = content
-    )
+fun SuccessDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(40.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "✓",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF10B981)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Password Reset Successfully!",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Your password has been updated. You can now login with your new password.",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF10B981)
+                    )
+                ) {
+                    Text(
+                        text = "Go to Login",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ResetPasswordScreenPreview() {
-    HalalFinanceTheme {
-        ResetPasswordScreen()
-    }
+fun ErrorDialog(errorMessage: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Error") },
+        text = { Text(errorMessage) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK", color = Color(0xFF10B981))
+            }
+        }
+    )
 }

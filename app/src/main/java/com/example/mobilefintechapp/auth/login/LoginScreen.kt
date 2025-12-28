@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.example.mobilefintechapp.R
+import com.example.mobilefintechapp.navigation.Screen
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -68,7 +69,7 @@ fun LoginScreen(navController: NavController) {
             onTryAgain = { showErrorDialog = false },
             onForgotPassword = {
                 showErrorDialog = false
-                navController.navigate("forgot_password")
+                navController.navigate(Screen.ForgotPassword.route)
             }
         )
     }
@@ -105,7 +106,7 @@ fun LoginScreen(navController: NavController) {
 
             // Welcome Text
             Text(
-                text = "Welcome",
+                text = "Welcome Back",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -253,7 +254,7 @@ fun LoginScreen(navController: NavController) {
                         }
 
                         TextButton(
-                            onClick = { navController.navigate("forgot_password") },
+                            onClick = { navController.navigate(Screen.ForgotPassword.route) },
                             enabled = !isLoading
                         ) {
                             Text(
@@ -290,8 +291,9 @@ fun LoginScreen(navController: NavController) {
                                                     }
 
                                                     // Navigate to OTP verification screen
-                                                    navController.navigate("login_verify_email") {
-                                                        popUpTo("login") { inclusive = true }
+                                                    val route = Screen.LoginVerifyEmail.createRoute(email)
+                                                    navController.navigate(route) {
+                                                        popUpTo(Screen.Login.route) { inclusive = true }
                                                     }
                                                 } else {
                                                     // Show error dialog
@@ -335,7 +337,7 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(enabled = !isLoading) {
-                                navController.navigate("sign_up")
+                                navController.navigate(Screen.SignUp.route)
                             },
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -400,7 +402,6 @@ fun LoginFailedDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Title
                 Text(
                     text = "Login Failed",
                     fontSize = 20.sp,
@@ -410,9 +411,8 @@ fun LoginFailedDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Message
                 Text(
-                    text = "The email or password you entered is incorrect.\nPlease try again or forgot password.",
+                    text = "The email or password you entered is incorrect.\nPlease try again or reset your password.",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -421,12 +421,10 @@ fun LoginFailedDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Try Again Button
                     OutlinedButton(
                         onClick = onTryAgain,
                         modifier = Modifier
@@ -445,7 +443,6 @@ fun LoginFailedDialog(
                         )
                     }
 
-                    // Forgot Password Button
                     Button(
                         onClick = onForgotPassword,
                         modifier = Modifier

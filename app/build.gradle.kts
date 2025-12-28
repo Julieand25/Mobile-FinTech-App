@@ -66,6 +66,15 @@ dependencies {
     implementation("com.google.firebase:firebase-functions-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
 
+    // Ktor for HTTP requests (Finverse API)
+    implementation ("io.ktor:ktor-client-android:2.3.7")
+    implementation ("io.ktor:ktor-client-content-negotiation:2.3.7")
+    implementation ("io.ktor:ktor-serialization-gson:2.3.7")
+    implementation ("io.ktor:ktor-client-logging:2.3.7")
+
+    // Gson for JSON parsing
+    implementation ("com.google.code.gson:gson:2.10.1")
+
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
@@ -74,19 +83,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // Optional: Firebase Firestore (for storing user data)
-    //implementation 'com.google.firebase:firebase-firestore-ktx'
-
-    // Optional: Firebase Storage (for file uploads)
-    //implementation 'com.google.firebase:firebase-storage-ktx'
-
     // TODO: Add the dependencies for Firebase products you want to use
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
-
-
-    // Add the dependencies for any other desired Firebase products
-    // https://firebase.google.com/docs/android/setup#available-libraries
 
     // Extended icons for Material3
     implementation ("androidx.compose.material:material-icons-extended:1.5.0")

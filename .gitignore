@@ -9,5 +9,7 @@ serviceAccountKey.json
 .env
 .env.*
 
+.function/backup/
+
 google-services.json
 **/google-services.json

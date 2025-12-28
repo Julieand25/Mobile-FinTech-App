@@ -24,11 +24,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavHostController
 import com.example.mobilefintechapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChangePasswordScreen() {
+fun ChangePasswordScreen(navController: NavHostController) {
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -390,6 +391,6 @@ fun HalalFinanceTheme(content: @Composable () -> Unit) {
 @Composable
 fun ChangePasswordScreenPreview() {
     HalalFinanceTheme {
-        ChangePasswordScreen()
+        //ChangePasswordScreen()
     }
 }

@@ -1,6 +1,7 @@
 package com.example.mobilefintechapp.profile.change_email
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,16 +22,36 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.example.mobilefintechapp.R
+import com.example.mobilefintechapp.navigation.Screen
+import com.example.mobilefintechapp.profile.change_email.VerifyPasswordViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VerifyPasswordScreen() {
+fun VerifyPasswordScreen(navController: NavHostController) {
+    val viewModel: VerifyPasswordViewModel = viewModel()
+
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val isPasswordVerified by viewModel.isPasswordVerified.collectAsState()
+
+    // Navigate to ChangeEmailScreen when password is verified
+    LaunchedEffect(isPasswordVerified) {
+        if (isPasswordVerified) {
+            navController.navigate(Screen.ChangeEmail.route) {
+                popUpTo(Screen.VerifyPasswordForEmail.route) { inclusive = true }
+            }
+            viewModel.resetVerification()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -66,7 +87,9 @@ fun VerifyPasswordScreen() {
                 ) {
                     // Back Button
                     IconButton(
-                        onClick = { /* TODO: Navigate back */ },
+                        onClick = {
+                            navController.popBackStack()
+                        },
                         modifier = Modifier
                             .size(48.dp)
                             .background(
@@ -92,8 +115,6 @@ fun VerifyPasswordScreen() {
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-
-                        //Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
                             text = "Enter your password to continue",
@@ -132,7 +153,6 @@ fun VerifyPasswordScreen() {
                         Box(
                             modifier = Modifier
                                 .size(80.dp)
-                                //.align(Alignment.TopCenter)
                                 .offset(y = (-25).dp)
                                 .background(
                                     color = Color(0xFF10B981).copy(alpha = 0.15f),
@@ -147,8 +167,6 @@ fun VerifyPasswordScreen() {
                                 modifier = Modifier.size(36.dp)
                             )
                         }
-
-                        //Spacer(modifier = Modifier.height(16.dp))
 
                         // Description Text
                         Text(
@@ -176,7 +194,10 @@ fun VerifyPasswordScreen() {
 
                             OutlinedTextField(
                                 value = password,
-                                onValueChange = { password = it },
+                                onValueChange = {
+                                    password = it
+                                    viewModel.clearError()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = {
                                     Text(
@@ -213,11 +234,37 @@ fun VerifyPasswordScreen() {
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF10B981),
-                                    unfocusedBorderColor = Color.LightGray,
+                                    focusedBorderColor = if (errorMessage != null) Color.Red else Color(0xFF10B981),
+                                    unfocusedBorderColor = if (errorMessage != null) Color.Red else Color.LightGray,
                                     focusedContainerColor = Color.White,
                                     unfocusedContainerColor = Color(0xFFF5F5F5)
+                                ),
+                                isError = errorMessage != null
+                            )
+
+                            // Error message
+                            if (errorMessage != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = errorMessage ?: "",
+                                    color = Color.Red,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(start = 4.dp)
                                 )
+                            }
+
+                            // Forgot Password Link
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Forgot Password?",
+                                color = Color(0xFF10B981),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .clickable {
+                                        navController.navigate(Screen.InsertEmail.route)
+                                    }
+                                    .padding(vertical = 4.dp)
                             )
                         }
 
@@ -230,7 +277,9 @@ fun VerifyPasswordScreen() {
                         ) {
                             // Cancel Button
                             OutlinedButton(
-                                onClick = { /* TODO: Navigate back or cancel */ },
+                                onClick = {
+                                    navController.popBackStack()
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -240,7 +289,8 @@ fun VerifyPasswordScreen() {
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
                                     brush = Brush.linearGradient(listOf(Color.LightGray, Color.LightGray))
-                                )
+                                ),
+                                enabled = !isLoading
                             ) {
                                 Text(
                                     text = "Cancel",
@@ -251,7 +301,9 @@ fun VerifyPasswordScreen() {
 
                             // Continue Button
                             Button(
-                                onClick = { /* TODO: Verify password */ },
+                                onClick = {
+                                    viewModel.verifyPassword(password)
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -259,13 +311,21 @@ fun VerifyPasswordScreen() {
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF10B981)
                                 ),
-                                enabled = password.isNotEmpty()
+                                enabled = password.isNotEmpty() && !isLoading
                             ) {
-                                Text(
-                                    text = "Continue",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Continue",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
 
@@ -273,6 +333,15 @@ fun VerifyPasswordScreen() {
                     }
                 }
             }
+        }
+    }
+    // Add navigation with password
+    LaunchedEffect(isPasswordVerified) {
+        if (isPasswordVerified) {
+            navController.navigate("change_email/$password") {
+                popUpTo(Screen.VerifyPasswordForEmail.route) { inclusive = true }
+            }
+            viewModel.resetVerification()
         }
     }
 }
@@ -293,6 +362,6 @@ fun HalalFinanceTheme(content: @Composable () -> Unit) {
 @Composable
 fun VerifyPasswordScreenPreview() {
     HalalFinanceTheme {
-        VerifyPasswordScreen()
+        //VerifyPasswordScreen()
     }
 }

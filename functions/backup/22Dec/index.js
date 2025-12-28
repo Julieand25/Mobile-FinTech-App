@@ -20,22 +20,22 @@ const getGmailCredentials = () => {
 };
 
 // ✨ Get Finverse credentials from environment
-// ✅ HARDCODED for testing (temporary fix)
 const getFinverseCredentials = () => {
+    const clientId = process.env.FINVERSE_CLIENT_ID;
+    const clientSecret = process.env.FINVERSE_CLIENT_SECRET;
+    const redirectUri = process.env.FINVERSE_REDIRECT_URI;
+    
     console.log('🔍 Finverse Config Check:');
+    console.log('Client ID exists:', !!clientId);
+    console.log('Client Secret exists:', !!clientSecret);
+    console.log('Redirect URI:', redirectUri);
     
-    const config = {
-        clientId: '01KC8A639HPEPCFWYTT1CD4QQ2',
-        clientSecret: 'fv-c-1765510679',
-        redirectUri: 'https://us-central1-mobile-fintech-app.cloudfunctions.net/finverseCallback',
-        baseUrl: 'https://api.sandbox.finverse.net'  // ← SANDBOX, NOT PROD!
+    return {
+        clientId: clientId,
+        clientSecret: clientSecret,
+        redirectUri: redirectUri,
+        baseUrl: 'https://api.prod.finverse.net'
     };
-    
-    console.log('Client ID:', config.clientId);
-    console.log('Base URL:', config.baseUrl);
-    console.log('Redirect URI:', config.redirectUri);
-    
-    return config;
 };
 
 console.log('==========================================');
@@ -412,7 +412,7 @@ exports.resetUserPassword = onCall(
 // =============================================================================
 
 /**
- * Get Finverse Link URL (CORRECTED with proper SDK endpoints)
+ * Get Finverse Link URL (Corrected Method)
  * Returns the URL to open for bank linking
  */
 exports.getFinverseConnectUrl = onCall(
@@ -436,25 +436,19 @@ exports.getFinverseConnectUrl = onCall(
             throw new Error('Finverse credentials not configured');
         }
         
-        console.log('Using base URL:', credentials.baseUrl);
-        console.log('Client ID:', credentials.clientId);
-        console.log('Redirect URI:', credentials.redirectUri);
-        
         try {
-            // Step 1: Get Customer Access Token using PublicApi generateCustomerAccessToken
-            console.log('🔑 Step 1: Generating customer access token...');
-            
+            // Step 1: Get Customer Access Token
+            console.log('🔑 Getting customer access token...');
             const tokenResponse = await axios.post(
-                `${credentials.baseUrl}/public/customer_access_tokens`,
-                {
+                `${credentials.baseUrl}/auth/token`,
+                new URLSearchParams({
                     client_id: credentials.clientId,
                     client_secret: credentials.clientSecret,
                     grant_type: 'client_credentials'
-                },
+                }),
                 {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Finverse-API-Version': '2024-09-01'
+                        'Content-Type': 'application/x-www-form-urlencoded'
                     }
                 }
             );
@@ -462,32 +456,30 @@ exports.getFinverseConnectUrl = onCall(
             const customerAccessToken = tokenResponse.data.access_token;
             console.log('✅ Customer access token obtained');
             
-            // Step 2: Generate Link Token using CustomerApi generateLinkToken
-            console.log('🔗 Step 2: Generating link token...');
-            
+            // Step 2: Generate Link Token
+            console.log('🔗 Generating link token...');
             const linkTokenResponse = await axios.post(
-                `${credentials.baseUrl}/customer/link_tokens`,
+                `${credentials.baseUrl}/link/token`,
                 {
                     client_id: credentials.clientId,
                     user_id: userId,
                     redirect_uri: credentials.redirectUri,
                     state: userId,
-                    response_mode: 'form_post',
+                    response_mode: 'query',
                     response_type: 'code',
-                    grant_type: 'client_credentials'
+                    grant_type: 'client_credentials',
+                    products_requested: 'DATA'
                 },
                 {
                     headers: {
                         'Authorization': `Bearer ${customerAccessToken}`,
-                        'Content-Type': 'application/json',
-                        'Finverse-API-Version': '2024-09-01'
+                        'Content-Type': 'application/json'
                     }
                 }
             );
             
             const linkUrl = linkTokenResponse.data.link_url;
-            console.log('✅ Link URL generated successfully');
-            console.log('Link URL:', linkUrl);
+            console.log('✅ Link URL generated:', linkUrl);
             
             return {
                 success: true,
@@ -495,19 +487,8 @@ exports.getFinverseConnectUrl = onCall(
             };
             
         } catch (error) {
-            console.error('❌❌❌ ERROR generating link URL');
-            console.error('Error type:', error.constructor.name);
-            console.error('Error message:', error.message);
-            console.error('Error response:', JSON.stringify(error.response?.data || {}));
-            console.error('Error status:', error.response?.status);
-            
-            // Return more detailed error
-            const errorMessage = error.response?.data?.message || 
-                                error.response?.data?.error?.message ||
-                                error.message || 
-                                'Unknown error';
-            
-            throw new Error(`Failed to generate link URL: ${errorMessage}`);
+            console.error('❌ Error generating link URL:', error.response?.data || error.message);
+            throw new Error(`Failed to generate link URL: ${error.message}`);
         }
     }
 );

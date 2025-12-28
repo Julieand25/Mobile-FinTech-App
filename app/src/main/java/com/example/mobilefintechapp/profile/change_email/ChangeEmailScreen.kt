@@ -18,15 +18,52 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import com.example.mobilefintechapp.navigation.Screen
+import com.example.mobilefintechapp.profile.change_email.ChangeEmailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
+fun ChangeEmailScreen(navController: NavHostController, userPassword: String) {
+    val viewModel: ChangeEmailViewModel = viewModel()
+
     var newEmail by remember { mutableStateOf("") }
     var confirmEmail by remember { mutableStateOf("") }
+
+    val currentEmail by viewModel.currentEmail.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    //val emailChangeInitiated by viewModel.emailChangeInitiated.collectAsState()
+    val verificationEmailSent by viewModel.verificationEmailSent.collectAsState()
+
+    // Navigate to ChangeEmailVerifyScreen when email change is initiated
+    /*LaunchedEffect(emailChangeInitiated) {
+        if (emailChangeInitiated) {
+            // Navigate and immediately reset to prevent re-triggering
+            val route = Screen.ChangeEmailVerify.createRoute(newEmail)
+            viewModel.resetEmailChangeInitiated()
+            navController.navigate(route)
+        }
+    }*/
+
+    // Show error snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
+
+    // Check if emails match and are not empty
+    val isFormValid = newEmail.isNotEmpty() &&
+            confirmEmail.isNotEmpty() &&
+            newEmail == confirmEmail &&
+            newEmail != currentEmail
 
     Box(
         modifier = Modifier
@@ -63,7 +100,9 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                 ) {
                     // Back Button
                     IconButton(
-                        onClick = { /* TODO: Navigate back */ },
+                        onClick = {
+                            navController.popBackStack()
+                        },
                         modifier = Modifier
                             .size(40.dp)
                             .background(
@@ -128,19 +167,33 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        OutlinedTextField(
-                            value = currentEmail,
-                            onValueChange = { },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = false,
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                disabledBorderColor = Color.LightGray,
-                                disabledContainerColor = Color(0xFFF5F5F5),
-                                disabledTextColor = Color.DarkGray
+                        if (isLoading && currentEmail.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color(0xFF10B881)
+                                )
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = currentEmail,
+                                onValueChange = { },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = false,
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    disabledBorderColor = Color.LightGray,
+                                    disabledContainerColor = Color(0xFFF5F5F5),
+                                    disabledTextColor = Color.DarkGray
+                                )
                             )
-                        )
+                        }
 
                         Spacer(modifier = Modifier.height(20.dp))
 
@@ -155,7 +208,7 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
 
                         OutlinedTextField(
                             value = newEmail,
-                            onValueChange = { newEmail = it },
+                            onValueChange = { newEmail = it.trim() },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -202,7 +255,7 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
 
                         OutlinedTextField(
                             value = confirmEmail,
-                            onValueChange = { confirmEmail = it },
+                            onValueChange = { confirmEmail = it.trim() },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -229,12 +282,26 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF10B981),
-                                unfocusedBorderColor = Color.LightGray,
+                                focusedBorderColor = if (confirmEmail.isNotEmpty() && newEmail != confirmEmail)
+                                    Color.Red else Color(0xFF10B981),
+                                unfocusedBorderColor = if (confirmEmail.isNotEmpty() && newEmail != confirmEmail)
+                                    Color.Red else Color.LightGray,
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color(0xFFF5F5F5)
-                            )
+                            ),
+                            isError = confirmEmail.isNotEmpty() && newEmail != confirmEmail
                         )
+
+                        // Show error if emails don't match
+                        if (confirmEmail.isNotEmpty() && newEmail != confirmEmail) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Emails do not match",
+                                color = Color.Red,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(32.dp))
 
@@ -245,7 +312,11 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                         ) {
                             // Cancel Button
                             OutlinedButton(
-                                onClick = { /* TODO: Navigate back or cancel */ },
+                                onClick = {
+                                    navController.navigate(Screen.Profile.route) {
+                                        popUpTo(Screen.Profile.route) { inclusive = true }
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -254,8 +325,14 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                                     contentColor = Color.DarkGray
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.linearGradient(listOf(Color.LightGray, Color.LightGray))
-                                )
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            Color.LightGray,
+                                            Color.LightGray
+                                        )
+                                    )
+                                ),
+                                enabled = !isLoading
                             ) {
                                 Text(
                                     text = "Cancel",
@@ -266,7 +343,9 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
 
                             // Continue Button
                             Button(
-                                onClick = { /* TODO: Change email */ },
+                                onClick = {
+                                    viewModel.sendVerificationEmail(newEmail, userPassword) // Send verification email
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -274,21 +353,42 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF10B981)
                                 ),
-                                enabled = newEmail.isNotEmpty() &&
-                                        confirmEmail.isNotEmpty() &&
-                                        newEmail == confirmEmail
+                                enabled = isFormValid && !isLoading
                             ) {
-                                Text(
-                                    text = "Continue",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Continue",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Add LaunchedEffect to navigate when email is sent
+                            LaunchedEffect(verificationEmailSent) {
+                                if (verificationEmailSent) {
+                                    navController.navigate(Screen.ChangeEmailVerify.createRoute(newEmail))
+                                    viewModel.resetVerificationEmailSent()
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        // Snackbar for error messages
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 }
 
@@ -296,6 +396,6 @@ fun ChangeEmailScreen(currentEmail: String = "ahmad.rahman@email.com") {
 @Composable
 fun ChangeEmailScreenPreview() {
     HalalFinanceTheme {
-        ChangeEmailScreen()
+        //ChangeEmailScreen()
     }
 }

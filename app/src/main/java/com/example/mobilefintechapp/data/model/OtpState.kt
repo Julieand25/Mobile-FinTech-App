@@ -10,5 +10,6 @@ data class OtpState(
     val attemptsLeft: Int = 5,
     val isLocked: Boolean = false,
     val lockEndTime: Long? = null,
-    val otpType: OtpType = OtpType.SIGN_UP
+    val otpType: OtpType = OtpType.SIGN_UP,
+    val verificationToken: String? = null
 )

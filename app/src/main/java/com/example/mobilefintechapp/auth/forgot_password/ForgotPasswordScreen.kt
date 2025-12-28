@@ -20,15 +20,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.mobilefintechapp.auth.register.HalalFinanceTheme
 import com.example.mobilefintechapp.navigation.Screen
+import com.example.mobilefintechapp.viewmodel.OtpViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ForgotPasswordScreen(navController: NavController) {
+fun ForgotPasswordScreen(
+    navController: NavController,
+    otpViewModel: OtpViewModel = viewModel()
+) {
     var email by remember { mutableStateOf("") }
     var showEmailError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
+
+    val firestore = FirebaseFirestore.getInstance()
 
     Box(
         modifier = Modifier
@@ -58,10 +67,9 @@ fun ForgotPasswordScreen(navController: NavController) {
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button with Circle Background
+                // Back Button
                 IconButton(
                     onClick = {
-                        // Navigate back to Login Screen
                         navController.navigate(Screen.Login.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
@@ -93,7 +101,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                     )
 
                     Text(
-                        text = "Enter your email to reset your password",
+                        text = "Enter your email to reset password",
                         fontSize = 13.sp,
                         color = Color.White.copy(alpha = 0.95f)
                     )
@@ -130,13 +138,13 @@ fun ForgotPasswordScreen(navController: NavController) {
                         value = email,
                         onValueChange = {
                             email = it
-                            // Hide error when user starts typing
                             if (it.isNotEmpty()) {
                                 showEmailError = false
+                                errorMessage = ""
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Enter email") },
+                        placeholder = { Text("Enter your email") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Email,
@@ -165,13 +173,14 @@ fun ForgotPasswordScreen(navController: NavController) {
                             focusedBorderColor = if (showEmailError) Color.Red else Color(0xFF10B981),
                             unfocusedBorderColor = if (showEmailError) Color.Red else Color.LightGray
                         ),
-                        isError = showEmailError
+                        isError = showEmailError,
+                        enabled = !isChecking
                     )
 
-                    // Email error message
-                    if (showEmailError) {
+                    // Error message
+                    if (showEmailError && errorMessage.isNotEmpty()) {
                         Text(
-                            text = "Please enter your email to continue",
+                            text = errorMessage,
                             color = Color.Red,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(start = 16.dp, top = 4.dp)
@@ -183,12 +192,36 @@ fun ForgotPasswordScreen(navController: NavController) {
                     // Next Button
                     Button(
                         onClick = {
-                            // Validate email field
                             if (email.isEmpty()) {
                                 showEmailError = true
+                                errorMessage = "Please enter your email"
+                            } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                showEmailError = true
+                                errorMessage = "Please enter a valid email"
                             } else {
-                                // Email is valid, navigate to ForgotPasswordVerifyEmail screen
-                                navController.navigate(Screen.ForgotPasswordVerifyEmail.route)
+                                // Check if email exists in Firestore users collection
+                                isChecking = true
+
+                                firestore.collection("users")
+                                    .whereEqualTo("email", email)
+                                    .get()
+                                    .addOnSuccessListener { documents ->
+                                        isChecking = false
+                                        if (!documents.isEmpty) {
+                                            // Email exists, send OTP and navigate
+                                            val route = Screen.ForgotPasswordVerifyEmail.createRoute(email)
+                                            navController.navigate(route)
+                                        } else {
+                                            // Email doesn't exist
+                                            showEmailError = true
+                                            errorMessage = "No account found with this email"
+                                        }
+                                    }
+                                    .addOnFailureListener { exception ->
+                                        isChecking = false
+                                        showEmailError = true
+                                        errorMessage = "Failed to verify email. Please try again."
+                                    }
                             }
                         },
                         modifier = Modifier
@@ -197,13 +230,21 @@ fun ForgotPasswordScreen(navController: NavController) {
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF10B981)
-                        )
+                        ),
+                        enabled = !isChecking
                     ) {
-                        Text(
-                            text = "Next",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (isChecking) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Next",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

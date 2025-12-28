@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,50 +35,21 @@ import com.example.mobilefintechapp.R
 import com.example.mobilefintechapp.components.BottomNavigationBar
 import com.example.mobilefintechapp.homepage.HalalFinanceTheme
 import java.text.SimpleDateFormat
+import java.util.UUID
 import java.util.*
 
-// Data class for Goal
-data class Goal(
-    val id: Int,
-    val name: String,
-    val description: String,
-    val currentAmount: Double,
-    val targetAmount: Double,
-    val lastContribution: String,
-    val progress: Int
-)
-
 @Composable
-fun GoalsScreen(navController: NavHostController) {
+fun GoalsScreen(
+    navController: NavHostController,
+    viewModel: GoalsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     var showCreateGoalDialog by remember { mutableStateOf(false) }
     var showContributionDialog by remember { mutableStateOf(false) }
     var selectedGoal by remember { mutableStateOf<Goal?>(null) }
     var showEditGoalDialog by remember { mutableStateOf(false) }
     var showDeleteGoalDialog by remember { mutableStateOf(false) }
 
-    // Sample goals data
-    val goals = remember {
-        mutableStateListOf(
-            Goal(
-                id = 1,
-                name = "Umrah",
-                description = "Pilgrimage to Mecca",
-                currentAmount = 500.0,
-                targetAmount = 3000.0,
-                lastContribution = "05/11/2025",
-                progress = 17
-            ),
-            Goal(
-                id = 2,
-                name = "Zakat",
-                description = "Annual charitable giving",
-                currentAmount = 800.0,
-                targetAmount = 1000.0,
-                lastContribution = "01/11/2025",
-                progress = 80
-            )
-        )
-    }
+    val goals by viewModel.goals.collectAsState()
 
     // Calculate total saved and target
     val totalSaved = goals.sumOf { it.currentAmount }
@@ -206,25 +178,63 @@ fun GoalsScreen(navController: NavHostController) {
                     .padding(horizontal = 24.dp)
                     .offset(y = (-35).dp)
             ) {
-                goals.forEach { goal ->
-                    GoalCard(
-                        goal = goal,
-                        onEdit = {
-                            selectedGoal = goal
-                            showEditGoalDialog = true
-                        },
-                        onDelete = {
-                            selectedGoal = goal
-                            showDeleteGoalDialog = true
-                        },
-                        onAddContribution = {
-                            selectedGoal = goal
-                            showContributionDialog = true
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+                if (goals.isEmpty()) {
+                    // Empty State
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(40.dp)
+                            .padding(top = 120.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(20.dp))
 
+                        // Title
+                        Text(
+                            text = "No Goals Yet",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Description
+                        Text(
+                            text = "Start your savings journey by creating your first goal. Tap the \"+\" button above to get started!",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                    } else {
+                        // Existing Goals List
+                    goals.forEach { goal ->
+                        GoalCard(
+                            goal = goal,
+                            onEdit = {
+                                selectedGoal = goal
+                                showEditGoalDialog = true
+                            },
+                            onDelete = {
+                                selectedGoal = goal
+                                showDeleteGoalDialog = true
+                            },
+                            onAddContribution = {
+                                selectedGoal = goal
+                                showContributionDialog = true
+                            },
+                            onViewDetails = {
+                                navController.navigate("goalDetails/${goal.id}")
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
@@ -239,8 +249,14 @@ fun GoalsScreen(navController: NavHostController) {
         if (showCreateGoalDialog) {
             CreateGoalDialog(
                 onDismiss = { showCreateGoalDialog = false },
-                onCreateGoal = { newGoal ->
-                    goals.add(newGoal)
+                onCreateGoal = { goal ->
+                    viewModel.addGoal(
+                        name = goal.name,
+                        description = goal.description,
+                        targetAmount = goal.targetAmount,
+                        targetDate = goal.targetDate,
+                        createdDate = goal.createdDate
+                    )
                     showCreateGoalDialog = false
                 }
             )
@@ -252,19 +268,11 @@ fun GoalsScreen(navController: NavHostController) {
                 goal = selectedGoal!!,
                 onDismiss = { showContributionDialog = false },
                 onConfirm = { amount, isAddMoney, note ->
-                    val goalIndex = goals.indexOfFirst { it.id == selectedGoal!!.id }
-                    if (goalIndex != -1) {
-                        val updatedGoal = goals[goalIndex].copy(
-                            currentAmount = if (isAddMoney) {
-                                goals[goalIndex].currentAmount + amount
-                            } else {
-                                (goals[goalIndex].currentAmount - amount).coerceAtLeast(0.0)
-                            },
-                            lastContribution = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-                        )
-                        val newProgress = ((updatedGoal.currentAmount / updatedGoal.targetAmount) * 100).toInt().coerceIn(0, 100)
-                        goals[goalIndex] = updatedGoal.copy(progress = newProgress)
-                    }
+                    viewModel.addContribution(
+                        goal = selectedGoal!!,
+                        amount = amount,
+                        isAdd = isAddMoney
+                    )
                     showContributionDialog = false
                 }
             )
@@ -276,10 +284,7 @@ fun GoalsScreen(navController: NavHostController) {
                 goal = selectedGoal!!,
                 onDismiss = { showEditGoalDialog = false },
                 onUpdateGoal = { updatedGoal ->
-                    val goalIndex = goals.indexOfFirst { it.id == selectedGoal!!.id }
-                    if (goalIndex != -1) {
-                        goals[goalIndex] = updatedGoal
-                    }
+                    viewModel.updateGoal(updatedGoal)
                     showEditGoalDialog = false
                 }
             )
@@ -291,7 +296,7 @@ fun GoalsScreen(navController: NavHostController) {
                 goalName = selectedGoal!!.name,
                 onDismiss = { showDeleteGoalDialog = false },
                 onConfirm = {
-                    goals.remove(selectedGoal)
+                    viewModel.deleteGoal(selectedGoal!!.id)
                     showDeleteGoalDialog = false
                     selectedGoal = null
                 }
@@ -305,7 +310,8 @@ fun GoalCard(
     goal: Goal,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onAddContribution: () -> Unit
+    onAddContribution: () -> Unit,
+    onViewDetails: () -> Unit // Add this parameter
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -325,18 +331,59 @@ fun GoalCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = goal.name,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                    // Goal name with info icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Text(
+                            text = goal.name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        Image(
+                            painter = painterResource(id = R.drawable.information),
+                            contentDescription = "View Details",
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(
+                                    color = Color.White.copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                )
+                                .clickable(onClick = onViewDetails)
+                                .padding(7.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+
+                    /*Text(
                         text = goal.description,
                         fontSize = 13.sp,
                         color = Color.Gray
-                    )
+                    )*/
+
+                    // Show target date if available
+                    if (goal.targetDate.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = "Target Date",
+                                modifier = Modifier.size(12.dp),
+                                tint = Color(0xFF10B881)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Target: ${goal.targetDate}",
+                                fontSize = 12.sp,
+                                color = Color(0xFF10B881),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
 
                 Row(
@@ -358,6 +405,8 @@ fun GoalCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Delete button
                     IconButton(
@@ -710,13 +759,16 @@ fun CreateGoalDialog(
                             onClick = {
                                 if (goalName.isNotEmpty() && targetAmount.isNotEmpty()) {
                                     val newGoal = Goal(
-                                        id = System.currentTimeMillis().toInt(),
+                                        id = UUID.randomUUID().toString(),
                                         name = goalName,
                                         description = description.ifEmpty { "No description" },
                                         currentAmount = 0.0,
                                         targetAmount = targetAmount.toDoubleOrNull() ?: 0.0,
                                         lastContribution = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
-                                        progress = 0
+                                        progress = 0,
+                                        targetDate = targetDate, // This should now save properly
+                                        createdDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
+                                        history = emptyList()
                                     )
                                     onCreateGoal(newGoal)
                                 }
@@ -789,6 +841,12 @@ fun AddContributionDialog(
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var isAddMoney by remember { mutableStateOf(true) }
+    var showError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    // Calculate remaining amount that can be added
+    val remainingToAdd = goal.targetAmount - goal.currentAmount
+    val maxSubtract = goal.currentAmount
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -859,7 +917,11 @@ fun AddContributionDialog(
                     ) {
                         // Add Money Button
                         Button(
-                            onClick = { isAddMoney = true },
+                            onClick = {
+                                isAddMoney = true
+                                showError = false
+                                amount = ""
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp),
@@ -878,7 +940,11 @@ fun AddContributionDialog(
 
                         // Withdraw Button
                         Button(
-                            onClick = { isAddMoney = false },
+                            onClick = {
+                                isAddMoney = false
+                                showError = false
+                                amount = ""
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp),
@@ -909,9 +975,36 @@ fun AddContributionDialog(
 
                     OutlinedTextField(
                         value = amount,
-                        onValueChange = {
-                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
-                                amount = it
+                        onValueChange = { newValue ->
+                            if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
+                                val parsedAmount = newValue.toDoubleOrNull() ?: 0.0
+
+                                // Real-time validation
+                                if (isAddMoney) {
+                                    // Check if adding would exceed target
+                                    if (parsedAmount > remainingToAdd) {
+                                        showError = true
+                                        errorMessage = "Maximum you can add: RM ${String.format("%,.2f", remainingToAdd)}"
+                                    } else {
+                                        showError = false
+                                        amount = newValue
+                                    }
+                                } else {
+                                    // Check if subtracting would go negative
+                                    if (parsedAmount > maxSubtract) {
+                                        showError = true
+                                        errorMessage = "Maximum you can subtract: RM ${String.format("%,.2f", maxSubtract)}"
+                                    } else {
+                                        showError = false
+                                        amount = newValue
+                                    }
+                                }
+
+                                // Only update if valid or empty
+                                if (!showError || newValue.isEmpty()) {
+                                    amount = newValue
+                                    if (newValue.isEmpty()) showError = false
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -925,16 +1018,46 @@ fun AddContributionDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        isError = showError,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (isAddMoney) Color(0xFF10B981) else Color(0xFFEF4444),
-                            unfocusedBorderColor = Color.LightGray
+                            unfocusedBorderColor = Color.LightGray,
+                            errorBorderColor = Color(0xFFEF4444)
                         )
                     )
+
+                    // Error Message or Helper Text
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (showError) {
+                        Text(
+                            text = errorMessage,
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    } else {
+                        // Show max limits as helper text
+                        if (isAddMoney) {
+                            Text(
+                                text = "Max amount you can add: RM ${String.format("%,.2f", remainingToAdd)}",
+                                fontSize = 11.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Max amount you can subtract: RM ${String.format("%,.2f", maxSubtract)}",
+                                fontSize = 11.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Note Field
-                    Text(
+                    /*Text(
                         text = "Note (Optional)",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -959,7 +1082,7 @@ fun AddContributionDialog(
                             focusedBorderColor = if (isAddMoney) Color(0xFF10B981) else Color(0xFFEF4444),
                             unfocusedBorderColor = Color.LightGray
                         )
-                    )
+                    )*/
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -971,23 +1094,65 @@ fun AddContributionDialog(
                             containerColor = Color(0xFFF5F5F5)
                         )
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(16.dp)
                         ) {
-                            Text(
-                                text = "Current Balance:",
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                            Text(
-                                text = "RM ${String.format("%,.2f", goal.currentAmount)}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Current Balance:",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = "RM ${String.format("%,.2f", goal.currentAmount)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Target Amount:",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = "RM ${String.format("%,.2f", goal.targetAmount)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Remaining:",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF10B881)
+                                )
+                                Text(
+                                    text = "RM ${String.format("%,.2f", remainingToAdd)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF10B881)
+                                )
+                            }
                         }
                     }
 
@@ -1025,7 +1190,16 @@ fun AddContributionDialog(
                         Button(
                             onClick = {
                                 val parsedAmount = amount.toDoubleOrNull() ?: 0.0
-                                if (parsedAmount > 0) {
+
+                                // Final validation before confirming
+                                val isValid = when {
+                                    parsedAmount <= 0 -> false
+                                    !isAddMoney && parsedAmount > goal.currentAmount -> false
+                                    isAddMoney && (goal.currentAmount + parsedAmount) > goal.targetAmount -> false
+                                    else -> true
+                                }
+
+                                if (isValid) {
                                     onConfirm(parsedAmount, isAddMoney, note)
                                 }
                             },
@@ -1037,7 +1211,10 @@ fun AddContributionDialog(
                                 containerColor = if (isAddMoney) Color(0xFF10B981) else Color(0xFFEF4444),
                                 disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
                             ),
-                            enabled = amount.isNotEmpty() && amount.toDoubleOrNull() != null && amount.toDouble() > 0
+                            enabled = amount.isNotEmpty() &&
+                                    amount.toDoubleOrNull() != null &&
+                                    amount.toDouble() > 0 &&
+                                    !showError
                         ) {
                             Text(
                                 text = if (isAddMoney) "Add Money" else "Withdraw",
@@ -1063,7 +1240,7 @@ fun EditGoalDialog(
     var goalName by remember { mutableStateOf(goal.name) }
     var targetAmount by remember { mutableStateOf(goal.targetAmount.toInt().toString()) }
     var description by remember { mutableStateOf(goal.description) }
-    var targetDate by remember { mutableStateOf("") }
+    var targetDate by remember { mutableStateOf(goal.targetDate) }
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
@@ -1277,7 +1454,8 @@ fun EditGoalDialog(
                                     val updatedGoal = goal.copy(
                                         name = goalName,
                                         description = description.ifEmpty { "No description" },
-                                        targetAmount = targetAmount.toDoubleOrNull() ?: goal.targetAmount
+                                        targetAmount = targetAmount.toDoubleOrNull() ?: goal.targetAmount,
+                                        targetDate = targetDate // Keep the updated or existing targetDate
                                     )
                                     // Recalculate progress with new target amount
                                     val newProgress = ((updatedGoal.currentAmount / updatedGoal.targetAmount) * 100).toInt().coerceIn(0, 100)

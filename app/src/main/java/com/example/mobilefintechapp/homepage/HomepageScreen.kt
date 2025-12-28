@@ -32,9 +32,15 @@ import com.example.mobilefintechapp.components.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomepageScreen(navController: NavHostController) {
+fun HomepageScreen(
+    navController: NavHostController,
+    viewModel: HomepageViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     var selectedTab by remember { mutableStateOf("Day") }
     var showNotifications by remember { mutableStateOf(false) }
+
+    // Collect goals from ViewModel
+    val goals by viewModel.goals.collectAsState()
 
     // Sample data based on selected tab
     val totalSpent = when (selectedTab) {
@@ -222,7 +228,12 @@ fun HomepageScreen(navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
-                    .padding(24.dp)
+                    .padding(
+                        start = 24.dp,
+                        end = 24.dp,
+                        top = 8.dp,
+                        bottom = 24.dp
+                    ) // Reduced top padding
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -244,7 +255,7 @@ fun HomepageScreen(navController: NavHostController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Transaction Items
                 TransactionItem(
@@ -281,7 +292,7 @@ fun HomepageScreen(navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
-                    .padding(24.dp)
+                    .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -294,7 +305,7 @@ fun HomepageScreen(navController: NavHostController) {
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
-                    TextButton(onClick = { /* TODO: Navigate to manage goals */ }) {
+                    TextButton(onClick = { navController.navigate("goals") }) {
                         Text(
                             text = "Manage",
                             color = Color(0xFF10B981),
@@ -303,30 +314,67 @@ fun HomepageScreen(navController: NavHostController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Goal Items
-                GoalItem(
-                    name = "Umrah",
-                    currentAmount = "RM 500",
-                    targetAmount = "RM 3,000",
-                    percentage = 17
-                )
+                // Display real goals from Firebase
+                if (goals.isEmpty()) {
+                    // Empty state
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No goals yet",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(onClick = { navController.navigate("goals") }) {
+                            Text(
+                                text = "Create your first goal",
+                                color = Color(0xFF10B981),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                } else {
+                    // Show first 2 goals
+                    goals.take(2).forEachIndexed { index, goal ->
+                        GoalItem(
+                            name = goal.name,
+                            currentAmount = "RM ${String.format("%,d", goal.currentAmount.toInt())}",
+                            targetAmount = "RM ${String.format("%,d", goal.targetAmount.toInt())}",
+                            percentage = goal.progress
+                        )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                        if (index < 1 && goals.size > 1) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
 
-                GoalItem(
-                    name = "Emergency Fund",
-                    currentAmount = "RM 1,200",
-                    targetAmount = "RM 5,000",
-                    percentage = 24
-                )
+                    // Show "View All" if there are more than 2 goals
+                    if (goals.size > 2) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(
+                            onClick = { navController.navigate("goals") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "View all ${goals.size} goals",
+                                color = Color(0xFF10B981),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(110.dp))
         }
 
-        // Bottom Navigation - NOW USING NAVCONTROLLER
+        // Bottom Navigation
         BottomNavigationBar(
             navController = navController,
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -396,62 +444,68 @@ fun TransactionItem(
     status: String,
     statusColor: Color
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.White, CircleShape),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.shop),
-                    contentDescription = "Shop Icon",
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFFF5F5F5), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.shop),
+                        contentDescription = "Shop Icon",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = category,
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
             }
-            Column {
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = name,
+                    text = amount,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
-                Text(
-                    text = category,
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = amount,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-            Box(
-                modifier = Modifier
-                    .background(statusColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = status,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = statusColor
-                )
+                Box(
+                    modifier = Modifier
+                        .background(statusColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = status,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor
+                    )
+                }
             }
         }
     }
@@ -464,49 +518,60 @@ fun GoalItem(
     targetAmount: String,
     percentage: Int
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = name,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.Black
-            )
-            Text(
-                text = "$percentage%",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF10B981)
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = percentage / 100f,
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = Color(0xFF10B881),
-            trackColor = Color(0xFFE0E0E0)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(16.dp)
         ) {
-            Text(
-                text = currentAmount,
-                fontSize = 12.sp,
-                color = Color.Gray
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black
+                )
+                Text(
+                    text = "$percentage%",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = percentage / 100f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = Color(0xFF10B881),
+                trackColor = Color(0xFFE0E0E0)
             )
-            Text(
-                text = targetAmount,
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = currentAmount,
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                Text(
+                    text = targetAmount,
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import com.example.mobilefintechapp.data.model.OtpState
 import com.example.mobilefintechapp.data.model.OtpType
 import com.example.mobilefintechapp.data.model.OtpVerificationResult
 import com.example.mobilefintechapp.data.repository.OtpRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 class OtpViewModel(
     private val otpRepository: OtpRepository = OtpRepository()
@@ -28,6 +31,7 @@ class OtpViewModel(
     val uiState: StateFlow<OtpState> = _uiState.asStateFlow()
 
     private var countdownJob: Job? = null
+    private val firestore = FirebaseFirestore.getInstance()
 
     /**
      * Initialize OTP by sending it to the user's email
@@ -122,11 +126,38 @@ class OtpViewModel(
             when (result) {
                 is OtpVerificationResult.Success -> {
                     Log.d(TAG, "✅ OTP verified successfully!")
-                    _uiState.update {
-                        it.copy(
-                            isVerifying = false,
-                            errorMessage = null
-                        )
+
+                    // For FORGOT_PASSWORD type, create a verification token
+                    if (otpType == OtpType.FORGOT_PASSWORD) {
+                        Log.d(TAG, "Creating password reset token...")
+                        try {
+                            val token = createPasswordResetToken(email)
+                            Log.d(TAG, "✅ Password reset token created: $token")
+
+                            _uiState.update {
+                                it.copy(
+                                    isVerifying = false,
+                                    errorMessage = null,
+                                    verificationToken = token
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Failed to create token: ${e.message}", e)
+                            _uiState.update {
+                                it.copy(
+                                    isVerifying = false,
+                                    errorMessage = "Verification succeeded but token creation failed: ${e.message}"
+                                )
+                            }
+                            return@launch
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isVerifying = false,
+                                errorMessage = null
+                            )
+                        }
                     }
 
                     // Delete OTP after successful verification
@@ -185,6 +216,50 @@ class OtpViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Create a password reset token in Firestore
+     * This token will be used to verify the password reset request
+     */
+    private suspend fun createPasswordResetToken(email: String): String {
+        return try {
+            Log.d(TAG, "🔄 Starting token creation for: $email")
+
+            val token = UUID.randomUUID().toString()
+            Log.d(TAG, "Generated token: $token")
+
+            val tokenData = hashMapOf(
+                "token" to token,
+                "email" to email,
+                "createdAt" to System.currentTimeMillis(),
+                "used" to false
+            )
+
+            Log.d(TAG, "Attempting to write to Firestore...")
+
+            firestore.collection("password_reset_tokens")
+                .document(email)
+                .set(tokenData)
+                .await()
+
+            Log.d(TAG, "✅✅✅ Token created successfully in Firestore!")
+            token
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌❌❌ Token creation failed!")
+            Log.e(TAG, "Error type: ${e.javaClass.simpleName}")
+            Log.e(TAG, "Error message: ${e.message}")
+            Log.e(TAG, "Stack trace:", e)
+            throw Exception("Token creation failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Get the verification token (used after OTP verification for password reset)
+     */
+    fun getVerificationToken(): String? {
+        return _uiState.value.verificationToken
     }
 
     /**

@@ -252,6 +252,140 @@ Halal Finance Team
     }
 );
 
+/**
+ * ✨ NEW: Reset User Password - Firebase Functions v2
+ * This function allows password reset after OTP verification
+ * IMPORTANT: Requires OTP verification token for security
+ */
+exports.resetUserPassword = onCall(
+    {
+        // Allow unauthenticated calls (user is resetting password, not logged in)
+        invoker: 'public'
+    },
+    async (request) => {
+        console.log('==========================================');
+        console.log('🔑 resetUserPassword called!');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('==========================================');
+        
+        const { email, newPassword, otpVerificationToken } = request.data;
+
+        // Validate input
+        if (!email || !newPassword || !otpVerificationToken) {
+            console.error('❌ Missing required fields');
+            throw new Error('Email, new password, and verification token are required');
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            console.error('❌ Invalid email format:', email);
+            throw new Error('Invalid email format');
+        }
+
+        // Validate password strength
+        if (newPassword.length < 6) {
+            console.error('❌ Password too weak');
+            throw new Error('Password must be at least 6 characters long');
+        }
+
+        console.log('✅ Input validation passed');
+        console.log('Target email:', email);
+
+        try {
+            // Step 1: Verify the OTP token from Firestore
+            console.log('🔍 Verifying OTP token...');
+            const otpDoc = await admin.firestore()
+                .collection('password_reset_tokens')
+                .doc(email)
+                .get();
+
+            if (!otpDoc.exists) {
+                console.error('❌ No password reset token found');
+                throw new Error('Invalid or expired verification. Please request a new OTP.');
+            }
+
+            const tokenData = otpDoc.data();
+            const now = Date.now();
+            const tokenAge = now - tokenData.createdAt;
+            const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+            // Check if token matches
+            if (tokenData.token !== otpVerificationToken) {
+                console.error('❌ Token mismatch');
+                throw new Error('Invalid verification token');
+            }
+
+            // Check if token is expired (15 minutes)
+            if (tokenAge > fifteenMinutes) {
+                console.error('❌ Token expired');
+                // Delete expired token
+                await admin.firestore()
+                    .collection('password_reset_tokens')
+                    .doc(email)
+                    .delete();
+                throw new Error('Verification token expired. Please request a new OTP.');
+            }
+
+            console.log('✅ OTP token verified successfully');
+
+            // Step 2: Get user by email
+            console.log('🔍 Finding user in Firebase Auth...');
+            const userRecord = await admin.auth().getUserByEmail(email);
+            console.log('✅ User found:', userRecord.uid);
+
+            // Step 3: Update password using Admin SDK
+            console.log('🔄 Updating password...');
+            await admin.auth().updateUser(userRecord.uid, {
+                password: newPassword
+            });
+            console.log('✅✅✅ PASSWORD UPDATED SUCCESSFULLY!');
+
+            // Step 4: Delete the used token
+            await admin.firestore()
+                .collection('password_reset_tokens')
+                .doc(email)
+                .delete();
+            console.log('✅ Token deleted');
+
+            // Step 5: Log the password reset
+            await admin.firestore().collection('password_reset_logs').add({
+                email: email,
+                uid: userRecord.uid,
+                resetAt: admin.firestore.FieldValue.serverTimestamp(),
+                success: true
+            });
+            console.log('✅ Logged to Firestore');
+
+            console.log('==========================================');
+            
+            return { 
+                success: true,
+                message: 'Password reset successfully'
+            };
+            
+        } catch (error) {
+            console.error('==========================================');
+            console.error('❌❌❌ FAILED TO RESET PASSWORD');
+            console.error('Error type:', error.constructor.name);
+            console.error('Error message:', error.message);
+            console.error('Error code:', error.code);
+            console.error('==========================================');
+            
+            // Log error to Firestore
+            await admin.firestore().collection('password_reset_logs').add({
+                email: email,
+                resetAt: admin.firestore.FieldValue.serverTimestamp(),
+                success: false,
+                error: error.message,
+                errorCode: error.code
+            });
+            
+            throw new Error(error.message || 'Failed to reset password');
+        }
+    }
+);
+
 // Cleanup expired OTPs daily
 exports.cleanupExpiredOtps = onSchedule('every 24 hours', async (event) => {
     const now = Date.now();
@@ -273,5 +407,29 @@ exports.cleanupExpiredOtps = onSchedule('every 24 hours', async (event) => {
         
     } catch (error) {
         console.error('Error cleaning up OTPs:', error);
+    }
+});
+
+// ✨ NEW: Cleanup expired password reset tokens daily
+exports.cleanupExpiredPasswordResetTokens = onSchedule('every 24 hours', async (event) => {
+    const now = Date.now();
+    const fifteenMinutesAgo = now - (15 * 60 * 1000);
+    
+    try {
+        const expiredTokens = await admin.firestore()
+            .collection('password_reset_tokens')
+            .where('createdAt', '<', fifteenMinutesAgo)
+            .get();
+        
+        const batch = admin.firestore().batch();
+        expiredTokens.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        
+        await batch.commit();
+        console.log(`Cleaned up ${expiredTokens.size} expired password reset tokens`);
+        
+    } catch (error) {
+        console.error('Error cleaning up password reset tokens:', error);
     }
 });
