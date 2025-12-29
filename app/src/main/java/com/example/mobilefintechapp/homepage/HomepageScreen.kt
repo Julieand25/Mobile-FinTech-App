@@ -42,6 +42,10 @@ fun HomepageScreen(
     // Collect goals from ViewModel
     val goals by viewModel.goals.collectAsState()
 
+    // Collect user profile from ViewModel
+    val userProfile by viewModel.userProfile.collectAsState()
+    val isLoadingProfile by viewModel.isLoadingProfile.collectAsState()
+
     // Sample data based on selected tab
     val totalSpent = when (selectedTab) {
         "Day" -> "RM 10"
@@ -76,16 +80,24 @@ fun HomepageScreen(
             ) {
                 Column {
                     Text(
-                        text = "Good Evening",
+                        text = "Welcome,",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    Text(
-                        text = "Ahmad Rahman",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
+                    if (isLoadingProfile) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = userProfile?.fullName ?: "User",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                    }
                 }
 
                 // Notification Icon with Badge
@@ -233,7 +245,7 @@ fun HomepageScreen(
                         end = 24.dp,
                         top = 8.dp,
                         bottom = 24.dp
-                    ) // Reduced top padding
+                    )
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
