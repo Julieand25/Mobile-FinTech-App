@@ -82,7 +82,7 @@ fun VerifyPasswordScreen(navController: NavHostController) {
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .padding(vertical = 6.dp)
-                        .padding(top = 40.dp),
+                        .padding(top = 65.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Button
@@ -130,7 +130,7 @@ fun VerifyPasswordScreen(navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .offset(y = (-35).dp)
+                    .offset(y = (-55).dp)
             ) {
                 Card(
                     modifier = Modifier
@@ -255,17 +255,22 @@ fun VerifyPasswordScreen(navController: NavHostController) {
 
                             // Forgot Password Link
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Forgot Password?",
-                                color = Color(0xFF10B981),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier
-                                    .clickable {
-                                        navController.navigate(Screen.InsertEmail.route)
-                                    }
-                                    .padding(vertical = 4.dp)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = "Forgot Password?",
+                                    color = Color(0xFF10B981),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier
+                                        .clickable {
+                                            navController.navigate(Screen.InsertEmail.route)
+                                        }
+                                        .padding(vertical = 4.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(32.dp))

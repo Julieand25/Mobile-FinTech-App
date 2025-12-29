@@ -29,15 +29,18 @@ import androidx.navigation.NavHostController
 import com.example.mobilefintechapp.R
 import com.example.mobilefintechapp.components.BottomNavigationBar
 import com.example.mobilefintechapp.navigation.Screen
-import com.example.mobilefintechapp.viewmodel.BankLinkingViewModel
+import com.example.mobilefintechapp.profile.bank.Bank
+import com.example.mobilefintechapp.profile.bank.LinkedBankAccount
+import com.example.mobilefintechapp.profile.bank.BankAccountViewModel
+import com.example.mobilefintechapp.profile.bank.BankSelectionDialog
+import com.example.mobilefintechapp.profile.bank.RemoveBankDialog
 
 @Composable
 fun ProfileScreen(
     navController: NavHostController
 ) {
-    // Get ViewModel
-    val bankViewModel: BankLinkingViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
+    val bankViewModel: BankAccountViewModel = viewModel()
 
     Log.d("ProfileScreen", "🎨 ProfileScreen composing")
 
@@ -46,24 +49,20 @@ fun ProfileScreen(
     var darkTheme by remember { mutableStateOf(false) }
     var hideTransactionAmounts by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showBankSelectionDialog by remember { mutableStateOf(false) }
+    var showRemoveBankDialog by remember { mutableStateOf(false) }
+    var bankToRemove by remember { mutableStateOf<LinkedBankAccount?>(null) }
 
     // Profile state
     val userProfile by profileViewModel.userProfile.collectAsState()
     val isLoadingProfile by profileViewModel.isLoading.collectAsState()
     val profileError by profileViewModel.errorMessage.collectAsState()
 
-    // Bank linking state
-    val hasLinkedAccount by bankViewModel.hasLinkedAccount.collectAsState()
-    val isLoading by bankViewModel.isLoading.collectAsState()
-    val isSyncing by bankViewModel.isSyncing.collectAsState()
-    val errorMessage by bankViewModel.errorMessage.collectAsState()
-    val successMessage by bankViewModel.successMessage.collectAsState()
-    val bankName by bankViewModel.bankName.collectAsState()
-    val accountMask by bankViewModel.accountMask.collectAsState()
-    val showLinkScreen by bankViewModel.showLinkScreen.collectAsState()
-    val finverseConnectUrl by bankViewModel.finverseConnectUrl.collectAsState()
-
-    Log.d("ProfileScreen", "📊 State - showLinkScreen: $showLinkScreen, hasLinkedAccount: $hasLinkedAccount")
+    // Bank accounts state from Firebase
+    val linkedBankAccounts by bankViewModel.linkedBankAccounts.collectAsState()
+    val isBankLoading by bankViewModel.isLoading.collectAsState()
+    val bankErrorMessage by bankViewModel.errorMessage.collectAsState()
+    val bankSuccessMessage by bankViewModel.successMessage.collectAsState()
 
     // Handle logout confirmation
     fun handleLogout() {
@@ -73,21 +72,41 @@ fun ProfileScreen(
         }
     }
 
+    // Handle bank selection
+    fun handleBankSelected(bank: Bank) {
+        bankViewModel.addBankAccount(bank)
+        showBankSelectionDialog = false
+    }
+
+    // Handle bank removal
+    fun handleRemoveBank(account: LinkedBankAccount) {
+        bankToRemove = account
+        showRemoveBankDialog = true
+    }
+
+    fun confirmRemoveBank() {
+        bankToRemove?.let { account ->
+            bankViewModel.removeBankAccount(account)
+        }
+        showRemoveBankDialog = false
+        bankToRemove = null
+    }
+
     // Show snackbar for messages
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(successMessage, errorMessage, profileError) {
-        successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            bankViewModel.clearMessages()
-        }
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            bankViewModel.clearMessages()
-        }
+    LaunchedEffect(profileError, bankErrorMessage, bankSuccessMessage) {
         profileError?.let {
             snackbarHostState.showSnackbar(it)
             profileViewModel.clearErrorMessage()
+        }
+        bankErrorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            bankViewModel.clearMessages()
+        }
+        bankSuccessMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            bankViewModel.clearMessages()
         }
     }
 
@@ -279,7 +298,7 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Bank Accounts Card with Finverse Integration
+                // Bank Accounts Card (Prototype)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -303,23 +322,21 @@ fun ProfileScreen(
                                 color = Color.Black
                             )
 
-                            if (!hasLinkedAccount) {
-                                Text(
-                                    text = "+ Add",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF10B881),
-                                    modifier = Modifier.clickable {
-                                        Log.d("ProfileScreen", "🔘 + Add button clicked!")
-                                        bankViewModel.startBankLinking()
-                                    }
-                                )
-                            }
+                            Text(
+                                text = "+ Add",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF10B881),
+                                modifier = Modifier.clickable {
+                                    Log.d("ProfileScreen", "🔘 + Add button clicked!")
+                                    showBankSelectionDialog = true
+                                }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (isLoading) {
+                        if (isBankLoading) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -328,124 +345,26 @@ fun ProfileScreen(
                             ) {
                                 CircularProgressIndicator(color = Color(0xFF10B881))
                             }
-                        } else if (hasLinkedAccount) {
-                            // Show linked account
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color(0xFF10B881), RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AccountBalance,
-                                        contentDescription = "Bank",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = bankName ?: "TestBank",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Black
-                                    )
-                                    Text(
-                                        text = "****${accountMask ?: "****"} • Connected",
-                                        fontSize = 12.sp,
-                                        color = Color.Gray
-                                    )
-                                }
-
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Connected",
-                                    tint = Color(0xFF10B881),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Sync button
-                            Button(
-                                onClick = { bankViewModel.syncTransactions() },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSyncing,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF10B881)
-                                )
-                            ) {
-                                if (isSyncing) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Refresh, "Sync")
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (isSyncing) "Syncing..." else "Sync Transactions")
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Unlink button
-                            TextButton(
-                                onClick = { bankViewModel.unlinkAccount() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "Unlink Account",
-                                    color = Color(0xFFEF5350),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        } else {
+                        } else if (linkedBankAccounts.isEmpty()) {
                             // No account linked
+                            Text(
+                                text = "No bank account linked",
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            // Show linked accounts
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "No bank account linked",
-                                    fontSize = 14.sp,
-                                    color = Color.Gray,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Link your bank account to automatically sync transactions",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {
-                                        Log.d("ProfileScreen", "🔘 Link Bank Account button clicked!")
-                                        bankViewModel.startBankLinking()
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF10B881)
+                                linkedBankAccounts.forEach { account ->
+                                    LinkedBankAccountItem(
+                                        account = account,
+                                        onRemove = { handleRemoveBank(account) }
                                     )
-                                ) {
-                                    Icon(Icons.Default.Add, "Link")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Link Bank Account")
                                 }
                             }
                         }
@@ -673,14 +592,24 @@ fun ProfileScreen(
             )
         }
 
-        if (showLinkScreen && finverseConnectUrl != null) {
-            FinverseLinkScreen(
-                connectUrl = finverseConnectUrl!!,
-                onClose = {
-                    bankViewModel.closeLinkScreen()
-                }
+        // Bank Selection Dialog
+        if (showBankSelectionDialog) {
+            BankSelectionDialog(
+                onDismiss = { showBankSelectionDialog = false },
+                onBankSelected = { bank -> handleBankSelected(bank) }
             )
-            return // Don't show profile screen while linking
+        }
+
+        // Remove Bank Dialog
+        if (showRemoveBankDialog && bankToRemove != null) {
+            RemoveBankDialog(
+                bankAccount = bankToRemove!!,
+                onDismiss = {
+                    showRemoveBankDialog = false
+                    bankToRemove = null
+                },
+                onConfirm = { confirmRemoveBank() }
+            )
         }
 
         // Snackbar for messages
@@ -690,6 +619,76 @@ fun ProfileScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 100.dp)
         )
+    }
+}
+
+@Composable
+fun LinkedBankAccountItem(
+    account: LinkedBankAccount,
+    onRemove: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val logoResId = context.resources.getIdentifier(
+        account.bank.logoResource,
+        "drawable",
+        context.packageName
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Bank Logo
+        if (logoResId != 0) {
+            Image(
+                painter = painterResource(id = logoResId),
+                contentDescription = account.bank.name,
+                modifier = Modifier.size(48.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFF10B881), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountBalance,
+                    contentDescription = "Bank",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = account.bank.name,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.Black
+            )
+            Text(
+                text = "****${account.accountMask} • Current",
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+
+        // Remove button
+        TextButton(onClick = onRemove) {
+            Text(
+                text = "Remove",
+                color = Color(0xFFEF5350),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 

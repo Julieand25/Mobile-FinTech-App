@@ -94,7 +94,7 @@ fun ChangeEmailScreen(navController: NavHostController, userPassword: String) {
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .padding(vertical = 6.dp)
-                        .padding(top = 40.dp),
+                        .padding(top = 60.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {

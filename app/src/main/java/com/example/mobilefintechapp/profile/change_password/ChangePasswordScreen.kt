@@ -1,6 +1,7 @@
 package com.example.mobilefintechapp.profile.change_password
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -9,7 +10,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,19 +23,52 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.mobilefintechapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChangePasswordScreen(navController: NavHostController) {
+fun ChangePasswordScreen(
+    navController: NavHostController,
+    viewModel: ChangePasswordViewModel = viewModel()
+) {
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Handle success - navigate back
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) {
+            navController.popBackStack()
+        }
+    }
+
+    // Loading Dialog
+    if (uiState.isLoading) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Updating Password") },
+            text = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color(0xFF10B981)
+                    )
+                    Text("Please wait...")
+                }
+            },
+            confirmButton = { }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -66,13 +99,13 @@ fun ChangePasswordScreen(navController: NavHostController) {
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .padding(vertical = 6.dp)
-                        .padding(top = 40.dp),
+                        .padding(top = 60.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Back Button
                     IconButton(
-                        onClick = { /* TODO: Navigate back */ },
+                        onClick = { navController.popBackStack() },
                         modifier = Modifier
                             .size(40.dp)
                             .background(
@@ -139,7 +172,10 @@ fun ChangePasswordScreen(navController: NavHostController) {
 
                         OutlinedTextField(
                             value = currentPassword,
-                            onValueChange = { currentPassword = it },
+                            onValueChange = {
+                                currentPassword = it
+                                viewModel.clearErrors()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -148,13 +184,6 @@ fun ChangePasswordScreen(navController: NavHostController) {
                                     fontSize = 14.sp
                                 )
                             },
-                            /*leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Password Icon",
-                                    tint = Color.Gray
-                                )
-                            },*/
                             trailingIcon = {
                                 if (currentPassword.isNotEmpty()) {
                                     IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
@@ -183,12 +212,26 @@ fun ChangePasswordScreen(navController: NavHostController) {
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF10B981),
-                                unfocusedBorderColor = Color.LightGray,
+                                focusedBorderColor = if (uiState.currentPasswordError != null)
+                                    Color.Red else Color(0xFF10B981),
+                                unfocusedBorderColor = if (uiState.currentPasswordError != null)
+                                    Color.Red else Color.LightGray,
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color(0xFFF5F5F5)
-                            )
+                            ),
+                            isError = uiState.currentPasswordError != null
                         )
+
+                        // Current Password Error
+                        if (uiState.currentPasswordError != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = uiState.currentPasswordError ?: "",
+                                color = Color.Red,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(20.dp))
 
@@ -203,7 +246,10 @@ fun ChangePasswordScreen(navController: NavHostController) {
 
                         OutlinedTextField(
                             value = newPassword,
-                            onValueChange = { newPassword = it },
+                            onValueChange = {
+                                newPassword = it
+                                viewModel.clearErrors()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -212,13 +258,6 @@ fun ChangePasswordScreen(navController: NavHostController) {
                                     fontSize = 14.sp
                                 )
                             },
-                            /*leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Password Icon",
-                                    tint = Color.Gray
-                                )
-                            },*/
                             trailingIcon = {
                                 if (newPassword.isNotEmpty()) {
                                     IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
@@ -267,7 +306,10 @@ fun ChangePasswordScreen(navController: NavHostController) {
 
                         OutlinedTextField(
                             value = confirmPassword,
-                            onValueChange = { confirmPassword = it },
+                            onValueChange = {
+                                confirmPassword = it
+                                viewModel.clearErrors()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -276,13 +318,6 @@ fun ChangePasswordScreen(navController: NavHostController) {
                                     fontSize = 14.sp
                                 )
                             },
-                            /*leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Password Icon",
-                                    tint = Color.Gray
-                                )
-                            },*/
                             trailingIcon = {
                                 if (confirmPassword.isNotEmpty()) {
                                     IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
@@ -311,12 +346,37 @@ fun ChangePasswordScreen(navController: NavHostController) {
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF10B981),
-                                unfocusedBorderColor = Color.LightGray,
+                                focusedBorderColor = if (uiState.confirmPasswordError != null)
+                                    Color.Red else Color(0xFF10B981),
+                                unfocusedBorderColor = if (uiState.confirmPasswordError != null)
+                                    Color.Red else Color.LightGray,
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color(0xFFF5F5F5)
-                            )
+                            ),
+                            isError = uiState.confirmPasswordError != null
                         )
+
+                        // Confirm Password Error
+                        if (uiState.confirmPasswordError != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = uiState.confirmPasswordError ?: "",
+                                color = Color.Red,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+
+                        // General Error
+                        if (uiState.generalError != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = uiState.generalError ?: "",
+                                color = Color.Red,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(32.dp))
 
@@ -327,7 +387,7 @@ fun ChangePasswordScreen(navController: NavHostController) {
                         ) {
                             // Cancel Button
                             OutlinedButton(
-                                onClick = { /* TODO: Navigate back or cancel */ },
+                                onClick = { navController.popBackStack() },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -348,7 +408,13 @@ fun ChangePasswordScreen(navController: NavHostController) {
 
                             // Confirm Button
                             Button(
-                                onClick = { /* TODO: Change password */ },
+                                onClick = {
+                                    viewModel.validateAndChangePassword(
+                                        currentPassword = currentPassword,
+                                        newPassword = newPassword,
+                                        confirmPassword = confirmPassword
+                                    )
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
@@ -359,7 +425,7 @@ fun ChangePasswordScreen(navController: NavHostController) {
                                 enabled = currentPassword.isNotEmpty() &&
                                         newPassword.isNotEmpty() &&
                                         confirmPassword.isNotEmpty() &&
-                                        newPassword == confirmPassword
+                                        !uiState.isLoading
                             ) {
                                 Text(
                                     text = "Confirm",
@@ -372,25 +438,5 @@ fun ChangePasswordScreen(navController: NavHostController) {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun HalalFinanceTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF10B981),
-            secondary = Color(0xFF0E9788),
-            background = Color(0xFF10B881)
-        ),
-        content = content
-    )
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ChangePasswordScreenPreview() {
-    HalalFinanceTheme {
-        //ChangePasswordScreen()
     }
 }

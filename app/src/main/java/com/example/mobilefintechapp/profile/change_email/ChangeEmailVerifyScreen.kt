@@ -114,7 +114,7 @@ fun ChangeEmailVerifyScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .padding(vertical = 6.dp)
-                        .padding(top = 40.dp),
+                        .padding(top = 65.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Button
@@ -162,7 +162,7 @@ fun ChangeEmailVerifyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .offset(y = (-35).dp)
+                    .offset(y = (-65).dp)
             ) {
                 Card(
                     modifier = Modifier
