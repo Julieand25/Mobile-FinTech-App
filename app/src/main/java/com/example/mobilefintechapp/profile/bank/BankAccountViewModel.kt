@@ -90,6 +90,7 @@ class BankAccountViewModel : ViewModel() {
     /**
      * Remove a bank account
      */
+    // In BankAccountViewModel.kt
     fun removeBankAccount(bankAccount: LinkedBankAccount) {
         viewModelScope.launch {
             try {
@@ -101,7 +102,7 @@ class BankAccountViewModel : ViewModel() {
                 result.fold(
                     onSuccess = {
                         Log.d(TAG, "✅ Bank removed successfully")
-                        _successMessage.value = "${bankAccount.bank.name} removed successfully"
+                        _successMessage.value = "${bankAccount.bank.name} and its transactions removed successfully"
                     },
                     onFailure = { exception ->
                         Log.e(TAG, "❌ Failed to remove bank", exception)
@@ -155,3 +156,4 @@ class BankAccountViewModel : ViewModel() {
         _successMessage.value = null
     }
 }
+

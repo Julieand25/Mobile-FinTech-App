@@ -23,12 +23,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.example.mobilefintechapp.R
 import com.example.mobilefintechapp.components.BottomNavigationBar
+import com.example.mobilefintechapp.transactions.Transaction
+import com.example.mobilefintechapp.transactions.TransactionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,12 +46,21 @@ fun HomepageScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val isLoadingProfile by viewModel.isLoadingProfile.collectAsState()
 
-    // Sample data based on selected tab
-    val totalSpent = when (selectedTab) {
-        "Day" -> "RM 10"
-        "Week" -> "RM 150"
-        "Month" -> "RM 500"
-        else -> "RM 10"
+    // Collect transactions from ViewModel
+    val allTransactions by viewModel.allTransactions.collectAsState()
+    val isLoadingTransactions by viewModel.isLoadingTransactions.collectAsState()
+
+    // Calculate dynamic values based on selected tab
+    val totalSpent = remember(selectedTab, allTransactions) {
+        viewModel.getTotalSpent(selectedTab)
+    }
+
+    val (halalPercentage, unknownPercentage, haramPercentage) = remember(selectedTab, allTransactions) {
+        viewModel.getTransactionPercentages(selectedTab)
+    }
+
+    val recentTransactions = remember(allTransactions) {
+        viewModel.getRecentTransactions()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -186,12 +195,20 @@ fun HomepageScreen(
                         color = Color.White.copy(alpha = 0.9f)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = totalSpent,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (isLoadingTransactions) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            color = Color.White,
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Text(
+                            text = "RM ${totalSpent.toInt()}",
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
@@ -213,21 +230,21 @@ fun HomepageScreen(
                 ) {
                     CategoryCard(
                         title = "Halal",
-                        percentage = "67%",
+                        percentage = if (isLoadingTransactions) "..." else "$halalPercentage%",
                         color = Color(0xFF10B881),
                         icon = Icons.Default.Check,
                         modifier = Modifier.weight(1f)
                     )
                     CategoryCard(
                         title = "Unknown",
-                        percentage = "28%",
+                        percentage = if (isLoadingTransactions) "..." else "$unknownPercentage%",
                         color = Color(0xFFFFA726),
                         icon = Icons.Default.Info,
                         modifier = Modifier.weight(1f)
                     )
                     CategoryCard(
                         title = "Haram",
-                        percentage = "5%",
+                        percentage = if (isLoadingTransactions) "..." else "$haramPercentage%",
                         color = Color(0xFFEF5350),
                         icon = Icons.Default.Close,
                         modifier = Modifier.weight(1f)
@@ -258,7 +275,7 @@ fun HomepageScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
-                    TextButton(onClick = { /* TODO: Navigate to all transactions */ }) {
+                    TextButton(onClick = { navController.navigate("transactions") }) {
                         Text(
                             text = "View All",
                             color = Color(0xFF10B981),
@@ -269,34 +286,66 @@ fun HomepageScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Transaction Items
-                TransactionItem(
-                    name = "Mydin",
-                    category = "Groceries",
-                    amount = "-RM 50",
-                    status = "Halal",
-                    statusColor = Color(0xFF10B881)
-                )
+                // Show real transaction data or empty state
+                if (isLoadingTransactions) {
+                    // Loading state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            color = Color(0xFF10B881)
+                        )
+                    }
+                } else if (recentTransactions.isEmpty()) {
+                    // Empty state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.shop),
+                                contentDescription = "No transactions",
+                                tint = Color.Gray.copy(alpha = 0.5f),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No transactions yet",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                } else {
+                    // Display recent transactions
+                    recentTransactions.forEachIndexed { index, transaction ->
+                        TransactionItem(
+                            name = transaction.merchantName,
+                            category = transaction.merchantCategory,
+                            amount = "-RM ${transaction.amount.toInt()}",
+                            status = transaction.status.name.lowercase()
+                                .replaceFirstChar { it.uppercase() },
+                            statusColor = when (transaction.status) {
+                                TransactionStatus.HALAL -> Color(0xFF10B881)
+                                TransactionStatus.UNKNOWN -> Color(0xFFFFA726)
+                                TransactionStatus.HARAM -> Color(0xFFEF5350)
+                            }
+                        )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                TransactionItem(
-                    name = "KFC",
-                    category = "Food",
-                    amount = "-RM 25",
-                    status = "Unknown",
-                    statusColor = Color(0xFFFFA726)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                TransactionItem(
-                    name = "7-Eleven",
-                    category = "Convenience",
-                    amount = "-RM 10",
-                    status = "Halal",
-                    statusColor = Color(0xFF10B881)
-                )
+                        if (index < recentTransactions.size - 1) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                }
             }
 
             // Savings Goals Section
@@ -743,12 +792,4 @@ fun HalalFinanceTheme(content: @Composable () -> Unit) {
         ),
         content = content
     )
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun HomepageScreenPreview() {
-    HalalFinanceTheme {
-        HomepageScreen(navController = rememberNavController())
-    }
 }

@@ -6,15 +6,20 @@ import androidx.lifecycle.viewModelScope
 import com.example.mobilefintechapp.goals.Goal
 import com.example.mobilefintechapp.profile.repository.UserProfile
 import com.example.mobilefintechapp.profile.repository.UserRepository
+import com.example.mobilefintechapp.transactions.Transaction
+import com.example.mobilefintechapp.transactions.TransactionRepository
+import com.example.mobilefintechapp.transactions.TransactionStatus
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class HomepageViewModel : ViewModel() {
     private val userRepository = UserRepository()
+    private val transactionRepository = TransactionRepository()
 
     private val _goals = MutableStateFlow<List<Goal>>(emptyList())
     val goals: StateFlow<List<Goal>> = _goals
@@ -25,9 +30,16 @@ class HomepageViewModel : ViewModel() {
     private val _isLoadingProfile = MutableStateFlow(false)
     val isLoadingProfile: StateFlow<Boolean> = _isLoadingProfile.asStateFlow()
 
+    private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
+    val allTransactions: StateFlow<List<Transaction>> = _allTransactions.asStateFlow()
+
+    private val _isLoadingTransactions = MutableStateFlow(false)
+    val isLoadingTransactions: StateFlow<Boolean> = _isLoadingTransactions.asStateFlow()
+
     init {
         observeGoals()
         loadUserProfile()
+        observeTransactions()
     }
 
     private fun loadUserProfile() {
@@ -56,7 +68,7 @@ class HomepageViewModel : ViewModel() {
             .collection("goals")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // Handle error
+                    Log.e("HomepageViewModel", "Error observing goals", error)
                     return@addSnapshotListener
                 }
 
@@ -66,5 +78,96 @@ class HomepageViewModel : ViewModel() {
                     }
                 }
             }
+    }
+
+    private fun observeTransactions() {
+        viewModelScope.launch {
+            _isLoadingTransactions.value = true
+            transactionRepository.getTransactions().collect { transactions ->
+                _allTransactions.value = transactions
+                Log.d("HomepageViewModel", "📊 Transactions updated: ${transactions.size} transactions")
+                _isLoadingTransactions.value = false
+            }
+        }
+    }
+
+    /**
+     * Get total spent for a specific time period
+     */
+    fun getTotalSpent(period: String): Double {
+        val now = Calendar.getInstance()
+        val filteredTransactions = _allTransactions.value.filter { transaction ->
+            val transactionDate = Calendar.getInstance().apply {
+                timeInMillis = transaction.timestamp
+            }
+
+            when (period) {
+                "Day" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                }
+                "Week" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                }
+                "Month" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                }
+                else -> false
+            }
+        }
+
+        return filteredTransactions.sumOf { it.amount }
+    }
+
+    /**
+     * Get transaction counts by status for a specific period
+     */
+    fun getTransactionPercentages(period: String): Triple<Int, Int, Int> {
+        val now = Calendar.getInstance()
+        val filteredTransactions = _allTransactions.value.filter { transaction ->
+            val transactionDate = Calendar.getInstance().apply {
+                timeInMillis = transaction.timestamp
+            }
+
+            when (period) {
+                "Day" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                }
+                "Week" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                }
+                "Month" -> {
+                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                            transactionDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                }
+                else -> false
+            }
+        }
+
+        val totalCount = filteredTransactions.size
+        if (totalCount == 0) return Triple(0, 0, 0)
+
+        val halalCount = filteredTransactions.count { it.status == TransactionStatus.HALAL }
+        val unknownCount = filteredTransactions.count { it.status == TransactionStatus.UNKNOWN }
+        val haramCount = filteredTransactions.count { it.status == TransactionStatus.HARAM }
+
+        val halalPercentage = (halalCount.toFloat() / totalCount * 100).toInt()
+        val unknownPercentage = (unknownCount.toFloat() / totalCount * 100).toInt()
+        val haramPercentage = (haramCount.toFloat() / totalCount * 100).toInt()
+
+        return Triple(halalPercentage, unknownPercentage, haramPercentage)
+    }
+
+    /**
+     * Get top 3 recent transactions
+     */
+    fun getRecentTransactions(): List<Transaction> {
+        return _allTransactions.value
+            .sortedByDescending { it.timestamp }
+            .take(3)
     }
 }
