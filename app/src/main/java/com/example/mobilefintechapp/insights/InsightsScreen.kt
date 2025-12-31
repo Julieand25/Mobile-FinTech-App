@@ -17,9 +17,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.mobilefintechapp.R
@@ -53,67 +55,13 @@ data class AIRecommendation(
 
 @Composable
 fun InsightsScreen(navController: NavHostController) {
+    val viewModel: InsightsViewModel = viewModel()
     var selectedTab by remember { mutableStateOf("Alerts") }
 
-    // Sample Spending Alerts Data
-    val spendingAlerts = remember {
-        listOf(
-            SpendingAlert(
-                category = "Shopping",
-                icon = R.drawable.shopping_bag,
-                message = "You spent RM500 on shopping this week, which is higher than usual.",
-                date = "07/11/2025",
-                amount = "RM 500",
-                iconBackgroundColor = Color(0xFFFFF9E6),
-                alertType = AlertType.WARNING
-            ),
-            SpendingAlert(
-                category = "Food",
-                icon = R.drawable.spoon_and_fork,
-                message = "Your food expenses are within budget this month.",
-                date = "06/11/2025",
-                amount = "RM 200",
-                iconBackgroundColor = Color(0xFFE6F7F1),
-                alertType = AlertType.INFO
-            ),
-            SpendingAlert(
-                category = "Transport",
-                icon = R.drawable.gas_station,
-                message = "Fuel costs increased by 25% compared to last month.",
-                date = "05/11/2025",
-                amount = "RM 150",
-                iconBackgroundColor = Color(0xFFFFE5E5),
-                alertType = AlertType.INCREASE
-            )
-        )
-    }
-
-    // Sample AI Recommendations Data
-    val aiRecommendations = remember {
-        listOf(
-            AIRecommendation(
-                title = "Reduce Entertainment Expenses",
-                description = "Try to reduce entertainment expenses next week to stay within budget.",
-                category = "Entertainment",
-                icon = R.drawable.youtube,
-                iconBackgroundColor = Color(0xFFE6F7F1)
-            ),
-            AIRecommendation(
-                title = "Food Budget Alert",
-                description = "You have RM80 budget remaining for food this week.",
-                category = "Food",
-                icon = R.drawable.spoon_and_fork,
-                iconBackgroundColor = Color(0xFFE6F7F1)
-            ),
-            AIRecommendation(
-                title = "Halal Shopping Suggestion",
-                description = "Consider shopping at halal-certified stores to improve your halal percentage.",
-                category = "Halal",
-                icon = R.drawable.shield,
-                iconBackgroundColor = Color(0xFFE6F7F1)
-            )
-        )
-    }
+    // Observe dynamic data from ViewModel
+    val spendingAlerts by viewModel.spendingAlerts.collectAsState()
+    val aiRecommendations by viewModel.aiRecommendations.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -197,12 +145,6 @@ fun InsightsScreen(navController: NavHostController) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    /*Icon(
-                                        painter = painterResource(id = R.drawable.alert_triangle),
-                                        contentDescription = "Alerts",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (selectedTab == "Alerts") Color(0xFF10B881) else Color.Gray
-                                    )*/
                                     Text(
                                         text = "Alerts",
                                         fontSize = 14.sp,
@@ -213,7 +155,7 @@ fun InsightsScreen(navController: NavHostController) {
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color.White,
                                 selectedLabelColor = Color(0xFF059669),
-                                        containerColor = Color.White.copy(alpha = 0.2f),
+                                containerColor = Color.White.copy(alpha = 0.2f),
                                 labelColor = Color.White
                             ),
                             shape = RoundedCornerShape(20.dp),
@@ -229,12 +171,6 @@ fun InsightsScreen(navController: NavHostController) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    /*Icon(
-                                        painter = painterResource(id = R.drawable.lightbulb),
-                                        contentDescription = "Tips",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (selectedTab == "Tips") Color(0xFF10B881) else Color.Gray
-                                    )*/
                                     Text(
                                         text = "Tips",
                                         fontSize = 14.sp,
@@ -245,7 +181,7 @@ fun InsightsScreen(navController: NavHostController) {
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color.White,
                                 selectedLabelColor = Color(0xFF059669),
-                                        containerColor = Color.White.copy(alpha = 0.2f),
+                                containerColor = Color.White.copy(alpha = 0.2f),
                                 labelColor = Color.White
                             ),
                             shape = RoundedCornerShape(20.dp),
@@ -268,14 +204,36 @@ fun InsightsScreen(navController: NavHostController) {
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFFF9FAFB)
                     )
-                    //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(20.dp)
                     ) {
-                        if (selectedTab == "Alerts") {
+                        if (isLoading) {
+                            // Loading State
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = Color(0xFF10B881),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Analyzing your spending...",
+                                        fontSize = 14.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+                        } else if (selectedTab == "Alerts") {
                             // Spending Alerts Section
                             Text(
                                 text = "Spending Alerts",
@@ -286,10 +244,17 @@ fun InsightsScreen(navController: NavHostController) {
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            spendingAlerts.forEachIndexed { index, alert ->
-                                SpendingAlertCard(alert)
-                                if (index < spendingAlerts.size - 1) {
-                                    Spacer(modifier = Modifier.height(12.dp))
+                            if (spendingAlerts.isEmpty()) {
+                                EmptyStateCard(
+                                    message = "No alerts at the moment. Great job managing your spending!",
+                                    icon = R.drawable.shield
+                                )
+                            } else {
+                                spendingAlerts.forEachIndexed { index, alert ->
+                                    SpendingAlertCard(alert)
+                                    if (index < spendingAlerts.size - 1) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
                                 }
                             }
                         } else {
@@ -303,10 +268,17 @@ fun InsightsScreen(navController: NavHostController) {
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            aiRecommendations.forEachIndexed { index, recommendation ->
-                                AIRecommendationCard(recommendation)
-                                if (index < aiRecommendations.size - 1) {
-                                    Spacer(modifier = Modifier.height(12.dp))
+                            if (aiRecommendations.isEmpty()) {
+                                EmptyStateCard(
+                                    message = "Keep tracking your expenses to get personalized recommendations!",
+                                    icon = R.drawable.brain
+                                )
+                            } else {
+                                aiRecommendations.forEachIndexed { index, recommendation ->
+                                    AIRecommendationCard(recommendation)
+                                    if (index < aiRecommendations.size - 1) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
                                 }
                             }
                         }
@@ -322,6 +294,46 @@ fun InsightsScreen(navController: NavHostController) {
             navController = navController,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
+}
+
+@Composable
+fun EmptyStateCard(message: String, icon: Int) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        color = Color(0xFF10B881).copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = icon),
+                    contentDescription = "Empty State",
+                    tint = Color(0xFF10B881).copy(alpha = 0.6f),
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+        }
     }
 }
 
@@ -380,23 +392,6 @@ fun SpendingAlertCard(alert: SpendingAlert) {
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
-                        /*// Alert Icon
-                        Icon(
-                            painter = painterResource(
-                                id = when (alert.alertType) {
-                                    AlertType.WARNING -> R.drawable.alert_triangle
-                                    AlertType.INFO -> R.drawable.info_circle
-                                    AlertType.INCREASE -> R.drawable.info_circle
-                                }
-                            ),
-                            contentDescription = "Alert Type",
-                            tint = when (alert.alertType) {
-                                AlertType.WARNING -> Color(0xFFF59E0B)
-                                AlertType.INFO -> Color(0xFF10B881)
-                                AlertType.INCREASE -> Color(0xFFDC2626)
-                            },
-                            modifier = Modifier.size(16.dp)
-                        )*/
                     }
                 }
 
@@ -494,14 +489,6 @@ fun AIRecommendationCard(recommendation: AIRecommendation) {
                     fontWeight = FontWeight.Medium
                 )
             }
-
-            /*// Bookmark Icon
-            Icon(
-                painter = painterResource(id = R.drawable.bookmark),
-                contentDescription = "Bookmark",
-                tint = Color.Gray.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )*/
         }
     }
 }
