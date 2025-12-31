@@ -515,15 +515,17 @@ fun TransactionCard(transaction: Transaction) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Category Icon with Gray Background
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape),
+                    .background(Color(0xFFF5F5F5), CircleShape), // Gray background for all
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.shop),
-                    contentDescription = "Shop",
+                Icon(
+                    painter = painterResource(id = getCategoryIcon(transaction.merchantCategory)),
+                    contentDescription = transaction.merchantCategory,
+                    tint = Color(0xFF6B7280), // Gray icon color
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -583,5 +585,92 @@ fun TransactionCard(transaction: Transaction) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Get icon for category (same logic as InsightAnalysisEngine)
+ */
+private fun getCategoryIcon(category: String): Int {
+    return when (category.lowercase().trim()) {
+        // Food & Beverages
+        "food", "restaurant", "dining", "cafe", "fast food", "food & dining", "bakery", "catering", "groceries" ->
+            R.drawable.spoon_and_fork
+        "beverages", "drinks", "coffee", "bubble tea", "juice", "tea", "smoothie" ->
+            R.drawable.drinks
+
+        // Shopping
+        "shopping", "retail", "grocery", "supermarket", "convenience store", "market", "convenience", "variety store" ->
+            R.drawable.shopping_bag
+
+        // Clothing & Fashion
+        "clothing", "fashion", "apparel", "clothes", "boutique", "shoes", "accessories" ->
+            R.drawable.tshirt
+
+        // Beauty & Personal Care
+        "beauty", "personal care", "cosmetics", "salon", "spa", "beauty & personal care",
+        "skincare", "makeup", "haircare", "perfume" ->
+            R.drawable.cosmetic
+
+        // Transportation
+        "transport", "transportation", "taxi", "grab", "bus", "train", "mrt", "lrt", "commute" ->
+            R.drawable.gas_station
+        "fuel", "petrol", "gas", "gas station", "shell", "petronas" ->
+            R.drawable.gas_station
+
+        // Electronics & Technology
+        "electronics", "technology", "gadgets", "computer", "phone", "laptop", "tablet",
+        "smartphone", "tech", "it" ->
+            R.drawable.device
+
+        // Entertainment
+        "entertainment", "movie", "cinema", "games", "streaming", "netflix", "youtube",
+        "concert", "theatre", "amusement park" ->
+            R.drawable.youtube
+
+        // Health & Medical
+        "health", "medical", "pharmacy", "clinic", "hospital", "healthcare", "doctor",
+        "medicine", "dental", "optical" ->
+            R.drawable.shield
+
+        // Bills & Utilities
+        "bills", "utilities", "electricity", "water", "internet", "phone bill",
+        "subscription", "insurance", "loan", "payment", "telecom" ->
+            R.drawable.bill
+
+        // Education
+        "education", "books", "courses", "school", "university", "tuition", "learning",
+        "training", "workshop", "seminar", "stationery" ->
+            R.drawable.open_book
+
+        // Home & Garden
+        "home", "furniture", "garden", "home improvement", "household", "appliances",
+        "decor", "renovation", "hardware" ->
+            R.drawable.house
+
+        // Sports & Fitness
+        "sports", "fitness", "gym", "exercise", "workout", "yoga", "swimming",
+        "athletic", "sportswear", "sports equipment", "sports & recreation" ->
+            R.drawable.sports
+
+        // Travel
+        "travel", "hotel", "flight", "vacation", "tourism", "airline", "accommodation",
+        "resort", "airbnb", "booking" ->
+            R.drawable.plane
+
+        // Financial
+        "budgeting", "budget", "savings", "investment", "banking", "finance" ->
+            R.drawable.budget
+
+        // Islamic Finance
+        "halal", "halal compliance", "zakat", "sadaqah", "islamic", "mosque", "donation" ->
+            R.drawable.shield
+
+        // Alcohol & Gambling (keep as shop or use warning icon)
+        "liquor store", "tobacco", "gambling" ->
+            R.drawable.shop
+
+        // Default fallback
+        else -> R.drawable.shop
     }
 }
