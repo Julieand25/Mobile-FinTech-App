@@ -580,14 +580,20 @@ fun TransactionItem(
 private fun getCategoryIcon(category: String): Int {
     return when (category.lowercase().trim()) {
         // Food & Beverages
-        "food", "restaurant", "dining", "cafe", "fast food", "food & dining", "bakery", "catering", "groceries" ->
+        "food", "restaurant", "dining", "cafe", "fast food", "food & dining", "catering" ->
             R.drawable.spoon_and_fork
+        "bakery" ->
+            R.drawable.bread  // ← NEW
+        "groceries" ->
+            R.drawable.groceries  // ← NEW
         "beverages", "drinks", "coffee", "bubble tea", "juice", "tea", "smoothie" ->
             R.drawable.drinks
 
         // Shopping
-        "shopping", "retail", "grocery", "supermarket", "convenience store", "market", "convenience", "variety store" ->
+        "shopping", "retail", "grocery", "supermarket", "market", "variety store" ->
             R.drawable.shopping_bag
+        "convenience store", "convenience" ->
+            R.drawable.convenience_store  // ← NEW
 
         // Clothing & Fashion
         "clothing", "fashion", "apparel", "clothes", "boutique", "shoes", "accessories" ->
@@ -600,7 +606,7 @@ private fun getCategoryIcon(category: String): Int {
 
         // Transportation
         "transport", "transportation", "taxi", "grab", "bus", "train", "mrt", "lrt", "commute" ->
-            R.drawable.gas_station
+            R.drawable.taxi  // ← CHANGED from gas_station
         "fuel", "petrol", "gas", "gas station", "shell", "petronas" ->
             R.drawable.gas_station
 
@@ -612,17 +618,21 @@ private fun getCategoryIcon(category: String): Int {
         // Entertainment
         "entertainment", "movie", "cinema", "games", "streaming", "netflix", "youtube",
         "concert", "theatre", "amusement park" ->
-            R.drawable.youtube
+            R.drawable.film  // ← CHANGED from youtube
 
         // Health & Medical
-        "health", "medical", "pharmacy", "clinic", "hospital", "healthcare", "doctor",
+        "health", "medical", "clinic", "hospital", "healthcare", "doctor",
         "medicine", "dental", "optical" ->
             R.drawable.shield
+        "pharmacy" ->
+            R.drawable.pharmacy  // ← NEW
 
         // Bills & Utilities
         "bills", "utilities", "electricity", "water", "internet", "phone bill",
-        "subscription", "insurance", "loan", "payment", "telecom" ->
+        "subscription", "insurance", "loan", "payment" ->
             R.drawable.bill
+        "telecom" ->
+            R.drawable.bill  // ← ALREADY CORRECT
 
         // Education
         "education", "books", "courses", "school", "university", "tuition", "learning",
@@ -651,6 +661,10 @@ private fun getCategoryIcon(category: String): Int {
         // Islamic Finance
         "halal", "halal compliance", "zakat", "sadaqah", "islamic", "mosque", "donation" ->
             R.drawable.shield
+
+        // Others / Miscellaneous
+        "others", "miscellaneous", "general", "other" ->
+            R.drawable.people  // ← NEW
 
         // Alcohol & Gambling
         "liquor store", "tobacco", "gambling" ->

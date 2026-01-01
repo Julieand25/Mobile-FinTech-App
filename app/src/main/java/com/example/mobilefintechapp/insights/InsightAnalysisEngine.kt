@@ -256,29 +256,33 @@ class InsightAnalysisEngine {
 
     // Helper functions
     private fun getThisWeekTransactions(transactions: List<Transaction>, now: Calendar): List<Transaction> {
+        val nowMs = now.timeInMillis
+        val oneWeekAgo = nowMs - (7 * 24 * 60 * 60 * 1000L)
+
         return transactions.filter { transaction ->
-            val txnDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
-            txnDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                    txnDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+            // Last 7 days
+            transaction.timestamp >= oneWeekAgo
         }
     }
 
     private fun getLastWeekTransactions(transactions: List<Transaction>, now: Calendar): List<Transaction> {
-        val lastWeek = (now.clone() as Calendar).apply {
-            add(Calendar.WEEK_OF_YEAR, -1)
-        }
+        val nowMs = now.timeInMillis
+        val oneWeekAgo = nowMs - (7 * 24 * 60 * 60 * 1000L)
+        val twoWeeksAgo = nowMs - (14 * 24 * 60 * 60 * 1000L)
+
         return transactions.filter { transaction ->
-            val txnDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
-            txnDate.get(Calendar.YEAR) == lastWeek.get(Calendar.YEAR) &&
-                    txnDate.get(Calendar.WEEK_OF_YEAR) == lastWeek.get(Calendar.WEEK_OF_YEAR)
+            // Between 7 and 14 days ago
+            transaction.timestamp >= twoWeeksAgo && transaction.timestamp < oneWeekAgo
         }
     }
 
     private fun getThisMonthTransactions(transactions: List<Transaction>, now: Calendar): List<Transaction> {
+        val nowMs = now.timeInMillis
+        val oneMonthAgo = nowMs - (30 * 24 * 60 * 60 * 1000L)
+
         return transactions.filter { transaction ->
-            val txnDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
-            txnDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                    txnDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+            // Last 30 days
+            transaction.timestamp >= oneMonthAgo
         }
     }
 
@@ -343,17 +347,26 @@ class InsightAnalysisEngine {
     /**
      * Get icon for category
      */
+    /**
+     * Get icon for category
+     */
     private fun getCategoryIcon(category: String): Int {
         return when (category.lowercase().trim()) {
             // Food & Beverages
-            "food", "restaurant", "dining", "cafe", "fast food", "food & dining", "bakery", "catering" ->
+            "food", "restaurant", "dining", "cafe", "fast food", "food & dining", "catering" ->
                 com.example.mobilefintechapp.R.drawable.spoon_and_fork
+            "bakery" ->
+                com.example.mobilefintechapp.R.drawable.bread  // ← NEW
+            "groceries" ->
+                com.example.mobilefintechapp.R.drawable.groceries  // ← NEW
             "beverages", "drinks", "coffee", "bubble tea", "juice", "tea", "smoothie" ->
                 com.example.mobilefintechapp.R.drawable.drinks
 
             // Shopping
-            "shopping", "retail", "grocery", "supermarket", "convenience store", "market" ->
+            "shopping", "retail", "grocery", "supermarket", "market", "variety store" ->
                 com.example.mobilefintechapp.R.drawable.shopping_bag
+            "convenience store", "convenience" ->
+                com.example.mobilefintechapp.R.drawable.convenience_store  // ← NEW
 
             // Clothing & Fashion
             "clothing", "fashion", "apparel", "clothes", "boutique", "shoes", "accessories" ->
@@ -366,7 +379,7 @@ class InsightAnalysisEngine {
 
             // Transportation
             "transport", "transportation", "taxi", "grab", "bus", "train", "mrt", "lrt", "commute" ->
-                com.example.mobilefintechapp.R.drawable.gas_station
+                com.example.mobilefintechapp.R.drawable.taxi  // ← CHANGED from gas_station
             "fuel", "petrol", "gas", "gas station", "shell", "petronas" ->
                 com.example.mobilefintechapp.R.drawable.gas_station
 
@@ -378,17 +391,21 @@ class InsightAnalysisEngine {
             // Entertainment
             "entertainment", "movie", "cinema", "games", "streaming", "netflix", "youtube",
             "concert", "theatre", "amusement park" ->
-                com.example.mobilefintechapp.R.drawable.youtube
+                com.example.mobilefintechapp.R.drawable.film  // ← CHANGED from youtube
 
             // Health & Medical
-            "health", "medical", "pharmacy", "clinic", "hospital", "healthcare", "doctor",
+            "health", "medical", "clinic", "hospital", "healthcare", "doctor",
             "medicine", "dental", "optical" ->
                 com.example.mobilefintechapp.R.drawable.shield
+            "pharmacy" ->
+                com.example.mobilefintechapp.R.drawable.pharmacy  // ← NEW
 
             // Bills & Utilities
             "bills", "utilities", "electricity", "water", "internet", "phone bill",
             "subscription", "insurance", "loan", "payment" ->
                 com.example.mobilefintechapp.R.drawable.bill
+            "telecom" ->
+                com.example.mobilefintechapp.R.drawable.bill  // ← ADDED
 
             // Education
             "education", "books", "courses", "school", "university", "tuition", "learning",
@@ -402,7 +419,7 @@ class InsightAnalysisEngine {
 
             // Sports & Fitness
             "sports", "fitness", "gym", "exercise", "workout", "yoga", "swimming",
-            "athletic", "sportswear", "sports equipment" ->
+            "athletic", "sportswear", "sports equipment", "sports & recreation" ->
                 com.example.mobilefintechapp.R.drawable.sports
 
             // Travel
@@ -417,6 +434,14 @@ class InsightAnalysisEngine {
             // Islamic Finance
             "halal", "halal compliance", "zakat", "sadaqah", "islamic", "mosque", "donation" ->
                 com.example.mobilefintechapp.R.drawable.shield
+
+            // Others / Miscellaneous
+            "others", "miscellaneous", "general", "other" ->
+                com.example.mobilefintechapp.R.drawable.people  // ← NEW
+
+            // Alcohol & Gambling
+            "liquor store", "tobacco", "gambling" ->
+                com.example.mobilefintechapp.R.drawable.shop
 
             // Default fallback
             else -> com.example.mobilefintechapp.R.drawable.shop

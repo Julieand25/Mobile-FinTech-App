@@ -65,6 +65,7 @@ dependencies {
     implementation ("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // Ktor for HTTP requests (Finverse API)
     implementation ("io.ktor:ktor-client-android:2.3.7")

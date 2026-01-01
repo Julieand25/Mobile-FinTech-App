@@ -39,34 +39,36 @@ class TransactionViewModel : ViewModel() {
     }
 
     /**
-     * Filter transactions by time
+     * Filter transactions by time (TIME-BASED, not calendar-based)
      */
     fun getFilteredTransactions(
         timeFilter: TimeFilter,
         categoryFilter: CategoryFilter
     ): List<Transaction> {
-        val now = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+
+        // ✅ TIME-BASED filtering (last X hours/days)
         val filteredByTime = _allTransactions.value.filter { transaction ->
-            val transactionDate = Calendar.getInstance().apply {
-                timeInMillis = transaction.timestamp
-            }
+            val transactionTime = transaction.timestamp
+            val timeDiff = now - transactionTime
 
             when (timeFilter) {
                 TimeFilter.TODAY -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                    // Last 24 hours
+                    timeDiff <= 24 * 60 * 60 * 1000L
                 }
                 TimeFilter.THIS_WEEK -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                    // Last 7 days (168 hours)
+                    timeDiff <= 7 * 24 * 60 * 60 * 1000L
                 }
                 TimeFilter.THIS_MONTH -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                    // Last 30 days
+                    timeDiff <= 30 * 24 * 60 * 60 * 1000L
                 }
             }
         }
 
+        // Filter by category
         return filteredByTime.filter { transaction ->
             when (categoryFilter) {
                 CategoryFilter.ALL -> true

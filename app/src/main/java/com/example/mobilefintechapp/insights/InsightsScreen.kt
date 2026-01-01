@@ -62,6 +62,7 @@ fun InsightsScreen(navController: NavHostController) {
     val spendingAlerts by viewModel.spendingAlerts.collectAsState()
     val aiRecommendations by viewModel.aiRecommendations.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val fcmNotifications by viewModel.fcmNotifications.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -131,26 +132,21 @@ fun InsightsScreen(navController: NavHostController) {
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Tab Selection
+                    // Tab Selection (3 tabs)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Alerts Tab
                         FilterChip(
                             selected = selectedTab == "Alerts",
                             onClick = { selectedTab = "Alerts" },
                             label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "Alerts",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                Text(
+                                    text = "AI Alerts",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color.White,
@@ -167,16 +163,11 @@ fun InsightsScreen(navController: NavHostController) {
                             selected = selectedTab == "Tips",
                             onClick = { selectedTab = "Tips" },
                             label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "Tips",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                Text(
+                                    text = "AI Tips",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color.White,
@@ -187,6 +178,27 @@ fun InsightsScreen(navController: NavHostController) {
                             shape = RoundedCornerShape(20.dp),
                             border = null
                         )
+
+                        // Push Notifications Tab
+                        /*FilterChip(
+                            selected = selectedTab == "Push",
+                            onClick = { selectedTab = "Push" },
+                            label = {
+                                Text(
+                                    text = "Push",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color.White,
+                                selectedLabelColor = Color(0xFF059669),
+                                containerColor = Color.White.copy(alpha = 0.2f),
+                                labelColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = null
+                        )*/
                     }
                 }
             }
@@ -233,51 +245,84 @@ fun InsightsScreen(navController: NavHostController) {
                                     )
                                 }
                             }
-                        } else if (selectedTab == "Alerts") {
-                            // Spending Alerts Section
-                            Text(
-                                text = "Spending Alerts",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
+                        } else {
+                            // ✅ FIXED: Use when() for 3 tabs
+                            when (selectedTab) {
+                                "Alerts" -> {
+                                    // AI Spending Alerts Section
+                                    Text(
+                                        text = "AI Spending Alerts",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
 
-                            if (spendingAlerts.isEmpty()) {
-                                EmptyStateCard(
-                                    message = "No alerts at the moment. Great job managing your spending!",
-                                    icon = R.drawable.shield
-                                )
-                            } else {
-                                spendingAlerts.forEachIndexed { index, alert ->
-                                    SpendingAlertCard(alert)
-                                    if (index < spendingAlerts.size - 1) {
-                                        Spacer(modifier = Modifier.height(12.dp))
+                                    if (spendingAlerts.isEmpty()) {
+                                        EmptyStateCard(
+                                            message = "No alerts at the moment. Great job managing your spending!",
+                                            icon = R.drawable.shield
+                                        )
+                                    } else {
+                                        spendingAlerts.forEachIndexed { index, alert ->
+                                            SpendingAlertCard(alert)
+                                            if (index < spendingAlerts.size - 1) {
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            // AI Recommendations Section
-                            Text(
-                                text = "AI Recommendations",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                                "Tips" -> {
+                                    // AI Recommendations Section
+                                    Text(
+                                        text = "AI Recommendations",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
 
-                            if (aiRecommendations.isEmpty()) {
-                                EmptyStateCard(
-                                    message = "Keep tracking your expenses to get personalized recommendations!",
-                                    icon = R.drawable.brain
-                                )
-                            } else {
-                                aiRecommendations.forEachIndexed { index, recommendation ->
-                                    AIRecommendationCard(recommendation)
-                                    if (index < aiRecommendations.size - 1) {
-                                        Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    if (aiRecommendations.isEmpty()) {
+                                        EmptyStateCard(
+                                            message = "Keep tracking your expenses to get personalized recommendations!",
+                                            icon = R.drawable.brain
+                                        )
+                                    } else {
+                                        aiRecommendations.forEachIndexed { index, recommendation ->
+                                            AIRecommendationCard(recommendation)
+                                            if (index < aiRecommendations.size - 1) {
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                            }
+                                        }
+                                    }
+                                }
+
+                                "Push" -> {
+                                    // Push Notifications from Firebase
+                                    Text(
+                                        text = "Push Notifications",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    if (fcmNotifications.isEmpty()) {
+                                        EmptyStateCard(
+                                            message = "No push notifications yet. Link a bank to get instant alerts!",
+                                            icon = R.drawable.bill
+                                        )
+                                    } else {
+                                        fcmNotifications.forEachIndexed { index, notification ->
+                                            PushNotificationCard(notification)
+                                            if (index < fcmNotifications.size - 1) {
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -488,6 +533,115 @@ fun AIRecommendationCard(recommendation: AIRecommendation) {
                     color = Color(0xFF10B881),
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun PushNotificationCard(notification: InsightNotification) {
+    // Format timestamp
+    val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+    val formattedDate = dateFormat.format(java.util.Date(notification.timestamp))
+
+    // Determine colors based on type
+    val (iconColor, backgroundColor) = when (notification.type) {
+        "CRITICAL" -> Pair(Color(0xFFDC2626), Color(0xFFFFE5E5))
+        "WARNING" -> Pair(Color(0xFFF59E0B), Color(0xFFFFF9E6))
+        else -> Pair(Color(0xFF10B881), Color(0xFFE6F7F1))
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = backgroundColor,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.bill),
+                    contentDescription = "Notification",
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Content
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Type badge
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = iconColor.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = notification.type,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = iconColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Title
+                Text(
+                    text = notification.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Message
+                Text(
+                    text = notification.message,
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Footer with date and category
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formattedDate,
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = notification.category,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF10B881)
+                    )
+                }
             }
         }
     }

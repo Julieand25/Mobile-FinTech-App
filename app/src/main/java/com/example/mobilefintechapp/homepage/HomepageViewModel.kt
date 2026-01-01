@@ -92,27 +92,27 @@ class HomepageViewModel : ViewModel() {
     }
 
     /**
-     * Get total spent for a specific time period
+     * Get total spent for a specific time period (TIME-BASED)
      */
     fun getTotalSpent(period: String): Double {
-        val now = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+
         val filteredTransactions = _allTransactions.value.filter { transaction ->
-            val transactionDate = Calendar.getInstance().apply {
-                timeInMillis = transaction.timestamp
-            }
+            val transactionTime = transaction.timestamp
+            val timeDiff = now - transactionTime
 
             when (period) {
                 "Day" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                    // Last 24 hours
+                    timeDiff <= 24 * 60 * 60 * 1000L
                 }
                 "Week" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                    // Last 7 days
+                    timeDiff <= 7 * 24 * 60 * 60 * 1000L
                 }
                 "Month" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                    // Last 30 days
+                    timeDiff <= 30 * 24 * 60 * 60 * 1000L
                 }
                 else -> false
             }
@@ -122,27 +122,27 @@ class HomepageViewModel : ViewModel() {
     }
 
     /**
-     * Get transaction counts by status for a specific period
+     * Get transaction counts by status for a specific period (TIME-BASED)
      */
     fun getTransactionPercentages(period: String): Triple<Int, Int, Int> {
-        val now = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+
         val filteredTransactions = _allTransactions.value.filter { transaction ->
-            val transactionDate = Calendar.getInstance().apply {
-                timeInMillis = transaction.timestamp
-            }
+            val transactionTime = transaction.timestamp
+            val timeDiff = now - transactionTime
 
             when (period) {
                 "Day" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                    // Last 24 hours
+                    timeDiff <= 24 * 60 * 60 * 1000L
                 }
                 "Week" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                    // Last 7 days
+                    timeDiff <= 7 * 24 * 60 * 60 * 1000L
                 }
                 "Month" -> {
-                    transactionDate.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                            transactionDate.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                    // Last 30 days
+                    timeDiff <= 30 * 24 * 60 * 60 * 1000L
                 }
                 else -> false
             }

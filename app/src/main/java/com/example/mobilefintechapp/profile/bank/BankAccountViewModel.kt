@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.mobilefintechapp.profile.bank.Bank
 import com.example.mobilefintechapp.profile.bank.LinkedBankAccount
 import com.example.mobilefintechapp.profile.bank.BankAccountRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,7 +103,10 @@ class BankAccountViewModel : ViewModel() {
                 result.fold(
                     onSuccess = {
                         Log.d(TAG, "✅ Bank removed successfully")
-                        _successMessage.value = "${bankAccount.bank.name} and its transactions removed successfully"
+                        _successMessage.value = "${bankAccount.bank.name} removed successfully"
+
+                        // ✅ WAIT FOR DELETE TO COMPLETE
+                        delay(5000) // Wait 5 seconds before allowing new actions
                     },
                     onFailure = { exception ->
                         Log.e(TAG, "❌ Failed to remove bank", exception)

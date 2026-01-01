@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 
 class InsightsViewModel : ViewModel() {
     private val transactionRepository = TransactionRepository()
+    private val notificationRepository = NotificationRepository()  // ← NEW
     private val analysisEngine = InsightAnalysisEngine()
 
     private val _spendingAlerts = MutableStateFlow<List<SpendingAlert>>(emptyList())
@@ -19,11 +20,16 @@ class InsightsViewModel : ViewModel() {
     private val _aiRecommendations = MutableStateFlow<List<AIRecommendation>>(emptyList())
     val aiRecommendations: StateFlow<List<AIRecommendation>> = _aiRecommendations.asStateFlow()
 
+    // ✅ NEW: FCM Notifications from Firestore
+    private val _fcmNotifications = MutableStateFlow<List<InsightNotification>>(emptyList())
+    val fcmNotifications: StateFlow<List<InsightNotification>> = _fcmNotifications.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     init {
         loadInsights()
+        loadFCMNotifications()  // ← NEW
     }
 
     private fun loadInsights() {
@@ -33,7 +39,7 @@ class InsightsViewModel : ViewModel() {
             transactionRepository.getTransactions().collect { transactions ->
                 Log.d("InsightsViewModel", "📊 Analyzing ${transactions.size} transactions")
 
-                // Generate insights
+                // Generate AI insights locally from transactions
                 val alerts = analysisEngine.generateSpendingAlerts(transactions)
                 val recommendations = analysisEngine.generateRecommendations(transactions)
 
@@ -47,7 +53,18 @@ class InsightsViewModel : ViewModel() {
         }
     }
 
+    // ✅ NEW: Load FCM notifications from Firestore
+    private fun loadFCMNotifications() {
+        viewModelScope.launch {
+            notificationRepository.getInsightNotifications().collect { notifications ->
+                _fcmNotifications.value = notifications
+                Log.d("InsightsViewModel", "✅ Loaded ${notifications.size} FCM notifications from Firestore")
+            }
+        }
+    }
+
     fun refreshInsights() {
         loadInsights()
+        loadFCMNotifications()  // ← Also refresh FCM notifications
     }
 }
